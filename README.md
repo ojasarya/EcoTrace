@@ -665,12 +665,5 @@ This is the difference between a carbon calculator and a decision-making platfor
 
 ```
 
-### One important thing I corrected
 
-I changed the **User Journey flow** from a fenced code block into plain Markdown text with arrows. This avoids the README looking like a giant programming code section.
-
-Everything that actually needs monospaced formatting—**terminal commands, formulas, examples, and project structure**—remains in proper code blocks.
-
-**For GitHub:** copy everything *inside* the large block above into your `README.md`. Do **not** copy the very first and very last triple backticks.
-```
  
