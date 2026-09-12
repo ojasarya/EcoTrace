@@ -76,9 +76,13 @@ export async function register(email: string, password: string): Promise<AuthUse
 
 async function authorizedFetch(path: string): Promise<Response> {
   const token = getAccessToken();
-  return fetch(`${apiBaseUrl}${path}`, {
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+  if (response.status === 401 && token) {
+    clearAccessToken();
+  }
+  return response;
 }
 
 export async function fetchFactories(): Promise<Factory[]> {
