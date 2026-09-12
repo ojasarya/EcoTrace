@@ -104,8 +104,8 @@ def create_factory(
 
 
 @router.get("", response_model=list[FactoryRead])
-def list_factories(service: Service):
-    return service.list_factories()
+def list_factories(service: Service, user: OptionalUser):
+    return service.list_accessible_factories(user.id if user is not None else None)
 
 
 @router.get("/mine", response_model=list[FactoryRead])

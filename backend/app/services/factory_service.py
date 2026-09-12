@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models.activity import (
@@ -42,6 +42,16 @@ class FactoryService:
                 .order_by(Factory.id)
             )
         )
+
+    def list_accessible_factories(self, owner_id: int | None) -> list[Factory]:
+        query = select(Factory).order_by(Factory.id)
+        if owner_id is None:
+            query = query.where(Factory.owner_id.is_(None))
+        else:
+            query = query.where(
+                or_(Factory.owner_id.is_(None), Factory.owner_id == owner_id)
+            )
+        return list(self.session.scalars(query))
 
     def get_factory(self, factory_id: int) -> Factory | None:
         return self.session.get(Factory, factory_id)

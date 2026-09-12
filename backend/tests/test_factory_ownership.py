@@ -31,6 +31,8 @@ def test_factory_can_be_linked_to_authenticated_owner() -> None:
         )
         assert factory.owner_id == user.id
         assert FactoryService(session).list_factories_for_owner(user.id) == [factory]
+        assert FactoryService(session).list_accessible_factories(None) == []
+        assert FactoryService(session).list_accessible_factories(user.id) == [factory]
 
 
 def test_owned_factory_requires_matching_user() -> None:
