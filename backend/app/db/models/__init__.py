@@ -11,6 +11,7 @@ from app.db.models.calculation import EmissionBreakdown, EmissionCalculation
 from app.db.models.emission_factor import EmissionFactor
 from app.db.models.factory import Factory, ReportingPeriod
 from app.db.models.intervention import Intervention
+from app.db.models.roadmap import RoadmapAction
 
 __all__ = [
     "EmissionBreakdown",
@@ -24,4 +25,5 @@ __all__ = [
     "TransportationActivity",
     "WasteRecord",
     "Intervention",
+    "RoadmapAction",
 ]

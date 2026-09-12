@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_factory_service
+from app.api.dependencies import get_factory_service, get_roadmap_action_service
 from app.db.models.activity import (
     EnergyUsage,
     MaterialUsage,
@@ -33,9 +33,16 @@ from app.schemas.factory import (
     ReportingPeriodRead,
 )
 from app.services.factory_service import FactoryService
+from app.services.roadmap_action_service import RoadmapActionService
+from app.schemas.roadmap_action import (
+    RoadmapActionCreate,
+    RoadmapActionRead,
+    RoadmapActionUpdate,
+)
 
 router = APIRouter(prefix="/factories", tags=["factories"])
 Service = Annotated[FactoryService, Depends(get_factory_service)]
+ActionService = Annotated[RoadmapActionService, Depends(get_roadmap_action_service)]
 
 
 def _factory_or_404(service: FactoryService, factory_id: int):
@@ -81,6 +88,50 @@ def update_factory(factory_id: int, payload: FactoryUpdate, service: Service):
 def delete_factory(factory_id: int, service: Service):
     service.delete_factory(_factory_or_404(service, factory_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{factory_id}/roadmap-actions",
+    response_model=RoadmapActionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_roadmap_action(
+    factory_id: int,
+    payload: RoadmapActionCreate,
+    service: ActionService,
+):
+    if not service.factory_exists(factory_id):
+        raise HTTPException(status_code=404, detail="Factory not found")
+    try:
+        return service.create_action(factory_id, **payload.model_dump())
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@router.get(
+    "/{factory_id}/roadmap-actions",
+    response_model=list[RoadmapActionRead],
+)
+def list_roadmap_actions(factory_id: int, service: ActionService):
+    if not service.factory_exists(factory_id):
+        raise HTTPException(status_code=404, detail="Factory not found")
+    return service.list_actions(factory_id)
+
+
+@router.patch(
+    "/{factory_id}/roadmap-actions/{action_id}",
+    response_model=RoadmapActionRead,
+)
+def update_roadmap_action(
+    factory_id: int,
+    action_id: int,
+    payload: RoadmapActionUpdate,
+    service: ActionService,
+):
+    action = service.get_action(factory_id, action_id)
+    if action is None:
+        raise HTTPException(status_code=404, detail="Roadmap action not found")
+    return service.update_action(action, **payload.model_dump(exclude_unset=True))
 
 
 @router.post(

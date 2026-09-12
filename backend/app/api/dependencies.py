@@ -11,6 +11,7 @@ from app.services.intervention_service import InterventionService
 from app.services.simulation_service import SimulationService
 from app.services.roadmap_service import RoadmapService
 from app.services.dashboard_service import DashboardService
+from app.services.roadmap_action_service import RoadmapActionService
 
 
 def get_factory_service() -> Generator[FactoryService, None, None]:
@@ -63,3 +64,8 @@ def get_dashboard_service() -> Generator[DashboardService, None, None]:
         intervention_service,
         RoadmapService(hotspot_service, intervention_service),
         )
+
+
+def get_roadmap_action_service() -> Generator[RoadmapActionService, None, None]:
+    for session in get_db():
+        yield RoadmapActionService(session)
