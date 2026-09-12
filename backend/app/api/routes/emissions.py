@@ -3,6 +3,8 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import (
     get_emission_calculation_service,
@@ -14,7 +16,11 @@ from app.api.dependencies import (
     get_dashboard_service,
     get_anomaly_service,
     get_report_service,
+    get_optional_current_user,
 )
+from app.db.models.factory import Factory
+from app.db.models.calculation import EmissionCalculation
+from app.db.models.user import User
 from app.db.models.factory import ReportingPeriod
 from app.schemas.emission import (
     EmissionCalculationRead,
@@ -78,6 +84,42 @@ CalculationReportService = Annotated[
     ReportService,
     Depends(get_report_service),
 ]
+OptionalUser = Annotated[User | None, Depends(get_optional_current_user)]
+
+
+def _ensure_factory_access(
+    session: Session,
+    factory_id: int,
+    user: User | None,
+) -> Factory:
+    factory = session.get(Factory, factory_id)
+    if factory is None:
+        raise HTTPException(status_code=404, detail="Factory not found")
+    if factory.owner_id is not None and user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if factory.owner_id is not None and factory.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Factory access denied")
+    return factory
+
+
+def _calculation_for_user(
+    session: Session,
+    calculation_id: int,
+    user: User | None,
+) -> EmissionCalculation:
+    calculation = session.scalar(
+        select(EmissionCalculation)
+        .options(selectinload(EmissionCalculation.reporting_period))
+        .where(EmissionCalculation.id == calculation_id)
+    )
+    if calculation is None:
+        raise HTTPException(status_code=404, detail="Calculation not found")
+    _ensure_factory_access(session, calculation.reporting_period.factory_id, user)
+    return calculation
 
 
 @router.post(
@@ -105,10 +147,12 @@ def calculate_period(
     factory_id: int,
     period_id: int,
     service: CalculationService,
+    user: OptionalUser,
 ):
     period = service.session.get(ReportingPeriod, period_id)
     if period is None or period.factory_id != factory_id:
         raise HTTPException(status_code=404, detail="Reporting period not found")
+    _ensure_factory_access(service.session, factory_id, user)
     try:
         return service.calculate_period(period)
     except ValueError as error:
@@ -119,7 +163,12 @@ def calculate_period(
     "/factories/{factory_id}/calculations",
     response_model=list[EmissionCalculationRead],
 )
-def list_calculations(factory_id: int, service: CalculationService):
+def list_calculations(
+    factory_id: int,
+    service: CalculationService,
+    user: OptionalUser,
+):
+    _ensure_factory_access(service.session, factory_id, user)
     return service.list_calculations(factory_id)
 
 
@@ -127,7 +176,12 @@ def list_calculations(factory_id: int, service: CalculationService):
     "/calculations/{calculation_id}/hotspots",
     response_model=list[HotspotRead],
 )
-def get_hotspots(calculation_id: int, service: HotspotAnalysisService):
+def get_hotspots(
+    calculation_id: int,
+    service: HotspotAnalysisService,
+    user: OptionalUser,
+):
+    _calculation_for_user(service.calculation_service.session, calculation_id, user)
     hotspots = service.get_hotspots(calculation_id)
     if hotspots is None:
         raise HTTPException(status_code=404, detail="Calculation not found")
@@ -159,7 +213,13 @@ def get_recommendations(
     calculation_id: int,
     hotspot_service: HotspotAnalysisService,
     intervention_service: InterventionCatalogService,
+    user: OptionalUser,
 ):
+    _calculation_for_user(
+        hotspot_service.calculation_service.session,
+        calculation_id,
+        user,
+    )
     hotspots = hotspot_service.get_hotspots(calculation_id)
     if hotspots is None:
         raise HTTPException(status_code=404, detail="Calculation not found")
@@ -205,7 +265,13 @@ def simulate_calculation(
     calculation_id: int,
     payload: SimulationRequest,
     service: WhatIfSimulationService,
+    user: OptionalUser,
 ):
+    _calculation_for_user(
+        service.calculation_service.session,
+        calculation_id,
+        user,
+    )
     try:
         result = service.simulate(
             calculation_id,
@@ -225,7 +291,13 @@ def simulate_calculation(
 def get_roadmap(
     calculation_id: int,
     service: ActionRoadmapService,
+    user: OptionalUser,
 ):
+    _calculation_for_user(
+        service.hotspot_service.calculation_service.session,
+        calculation_id,
+        user,
+    )
     roadmap = service.build(calculation_id)
     if roadmap is None:
         raise HTTPException(status_code=404, detail="Calculation not found")
@@ -239,7 +311,13 @@ def get_roadmap(
 def get_dashboard(
     factory_id: int,
     service: FactoryDashboardService,
+    user: OptionalUser,
 ):
+    _ensure_factory_access(
+        service.calculation_service.session,
+        factory_id,
+        user,
+    )
     return service.get_factory_dashboard(factory_id)
 
 
@@ -250,7 +328,13 @@ def get_dashboard(
 def get_anomalies(
     factory_id: int,
     service: FactoryAnomalyService,
+    user: OptionalUser,
 ):
+    _ensure_factory_access(
+        service.calculation_service.session,
+        factory_id,
+        user,
+    )
     return service.detect_for_factory(factory_id)
 
 
@@ -262,7 +346,13 @@ def get_anomalies(
 def export_calculation(
     calculation_id: int,
     service: CalculationReportService,
+    user: OptionalUser,
 ):
+    _calculation_for_user(
+        service.calculation_service.session,
+        calculation_id,
+        user,
+    )
     content = service.calculation_csv(calculation_id)
     if content is None:
         raise HTTPException(status_code=404, detail="Calculation not found")
