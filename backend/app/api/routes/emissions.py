@@ -7,15 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.dependencies import (
     get_emission_calculation_service,
     get_emission_factor_service,
+    get_hotspot_service,
 )
+from app.db.models.factory import ReportingPeriod
 from app.schemas.emission import (
     EmissionCalculationRead,
     EmissionFactorCreate,
     EmissionFactorRead,
 )
+from app.schemas.hotspot import HotspotRead
 from app.services.emission_calculation_service import EmissionCalculationService
 from app.services.emission_factor_service import EmissionFactorService
-from app.db.models.factory import ReportingPeriod
+from app.services.hotspot_service import HotspotService
 
 router = APIRouter(tags=["emissions"])
 FactorService = Annotated[
@@ -25,6 +28,10 @@ FactorService = Annotated[
 CalculationService = Annotated[
     EmissionCalculationService,
     Depends(get_emission_calculation_service),
+]
+HotspotAnalysisService = Annotated[
+    HotspotService,
+    Depends(get_hotspot_service),
 ]
 
 
@@ -69,6 +76,17 @@ def calculate_period(
 )
 def list_calculations(factory_id: int, service: CalculationService):
     return service.list_calculations(factory_id)
+
+
+@router.get(
+    "/calculations/{calculation_id}/hotspots",
+    response_model=list[HotspotRead],
+)
+def get_hotspots(calculation_id: int, service: HotspotAnalysisService):
+    hotspots = service.get_hotspots(calculation_id)
+    if hotspots is None:
+        raise HTTPException(status_code=404, detail="Calculation not found")
+    return hotspots
 
 
 @router.get(
