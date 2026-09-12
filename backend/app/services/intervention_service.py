@@ -1,5 +1,7 @@
 """Intervention catalog and hotspot matching service."""
 
+from decimal import Decimal
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,9 +27,11 @@ class InterventionService:
             self.session.scalars(select(Intervention).order_by(Intervention.name))
         )
 
-    def match(self, hotspots: tuple[Hotspot, ...]) -> list[tuple[Intervention, Hotspot, str]]:
+    def rank_recommendations(
+        self, hotspots: tuple[Hotspot, ...]
+    ) -> list[tuple[Intervention, Hotspot, str, Decimal, Decimal]]:
         interventions = self.list_interventions()
-        matches: list[tuple[Intervention, Hotspot, str]] = []
+        matches: list[tuple[Intervention, Hotspot, str, Decimal, Decimal]] = []
         for hotspot in hotspots:
             for intervention in interventions:
                 if (
@@ -40,5 +44,28 @@ class InterventionService:
                         f"responsible for {hotspot.percentage_of_total.normalize()}% "
                         "of total emissions."
                     )
-                    matches.append((intervention, hotspot, rationale))
-        return matches
+                    reduction = (
+                        hotspot.kg_co2e
+                        * intervention.estimated_reduction_percentage
+                        / Decimal("100")
+                    )
+                    feasibility_weight = {
+                        "high": Decimal("1"),
+                        "medium": Decimal("0.75"),
+                        "low": Decimal("0.5"),
+                    }.get(intervention.feasibility.casefold(), Decimal("0.5"))
+                    urgency_weight = {
+                        "high": Decimal("1"),
+                        "medium": Decimal("0.75"),
+                        "low": Decimal("0.5"),
+                    }.get(intervention.urgency.casefold(), Decimal("0.5"))
+                    cost = intervention.estimated_cost
+                    score = (
+                        hotspot.percentage_of_total
+                        * intervention.estimated_reduction_percentage
+                        * feasibility_weight
+                        * urgency_weight
+                        / (cost + Decimal("1"))
+                    )
+                    matches.append((intervention, hotspot, rationale, reduction, score))
+        return sorted(matches, key=lambda item: (-item[4], item[0].name.casefold()))

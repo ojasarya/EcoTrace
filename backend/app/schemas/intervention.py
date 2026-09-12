@@ -23,7 +23,10 @@ class InterventionRead(InterventionCreate):
 
 
 class RecommendationRead(InterventionRead):
+    recommendation_rank: int
     hotspot_rank: int
     hotspot_source: str
     hotspot_percentage: Decimal
+    estimated_reduction_kg_co2e: Decimal
+    priority_score: Decimal
     rationale: str

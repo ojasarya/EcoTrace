@@ -129,6 +129,7 @@ def get_recommendations(
     hotspots = hotspot_service.get_hotspots(calculation_id)
     if hotspots is None:
         raise HTTPException(status_code=404, detail="Calculation not found")
+    ranked = intervention_service.rank_recommendations(hotspots)
     return [
         {
             "id": intervention.id,
@@ -140,12 +141,17 @@ def get_recommendations(
             "estimated_reduction_percentage": intervention.estimated_reduction_percentage,
             "feasibility": intervention.feasibility,
             "urgency": intervention.urgency,
+            "recommendation_rank": rank,
             "hotspot_rank": hotspot.rank,
             "hotspot_source": hotspot.source,
             "hotspot_percentage": hotspot.percentage_of_total,
+            "estimated_reduction_kg_co2e": reduction,
+            "priority_score": score,
             "rationale": rationale,
         }
-        for intervention, hotspot, rationale in intervention_service.match(hotspots)
+        for rank, (intervention, hotspot, rationale, reduction, score) in enumerate(
+            ranked, 1
+        )
     ]
 
 

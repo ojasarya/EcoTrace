@@ -58,6 +58,8 @@ def test_intervention_matching_returns_explainable_recommendation() -> None:
             assert response.status_code == 200
             assert response.json()[0]["name"] == "Renewable electricity"
             assert response.json()[0]["hotspot_rank"] == 1
+            assert response.json()[0]["recommendation_rank"] == 1
+            assert Decimal(response.json()[0]["estimated_reduction_kg_co2e"]) == Decimal("40")
     finally:
         app.dependency_overrides.pop(get_hotspot_service, None)
         app.dependency_overrides.pop(get_intervention_service, None)
