@@ -54,6 +54,18 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return result.user;
 }
 
+export async function register(email: string, password: string): Promise<AuthUser> {
+  const response = await fetch(`${apiBaseUrl}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) {
+    throw new Error(response.status === 409 ? "An account with this email already exists" : `Registration failed (${response.status})`);
+  }
+  return login(email, password);
+}
+
 export async function fetchDashboard(): Promise<DashboardResponse> {
   const token = getAccessToken();
   const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/dashboard`, {
