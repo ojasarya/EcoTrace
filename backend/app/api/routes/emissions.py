@@ -371,7 +371,12 @@ def export_calculation(
     "/calculations/{calculation_id}",
     response_model=EmissionCalculationRead,
 )
-def get_calculation(calculation_id: int, service: CalculationService):
+def get_calculation(
+    calculation_id: int,
+    service: CalculationService,
+    user: OptionalUser,
+):
+    _calculation_for_user(service.session, calculation_id, user)
     calculation = service.get_calculation(calculation_id)
     if calculation is None:
         raise HTTPException(status_code=404, detail="Calculation not found")

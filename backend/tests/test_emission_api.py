@@ -158,10 +158,18 @@ def test_emission_calculations_require_factory_owner_access() -> None:
                 client.get(f"/api/v1/factories/{factory.id}/calculations").status_code
                 == 401
             )
+            assert (
+                client.get(f"/api/v1/calculations/{calculation.id}").status_code
+                == 401
+            )
 
             app.dependency_overrides[get_optional_current_user] = lambda: other_user
             assert (
                 client.get(f"/api/v1/factories/{factory.id}/calculations").status_code
+                == 403
+            )
+            assert (
+                client.get(f"/api/v1/calculations/{calculation.id}").status_code
                 == 403
             )
 
@@ -169,6 +177,9 @@ def test_emission_calculations_require_factory_owner_access() -> None:
             response = client.get(f"/api/v1/factories/{factory.id}/calculations")
             assert response.status_code == 200
             assert response.json()[0]["id"] == calculation.id
+            response = client.get(f"/api/v1/calculations/{calculation.id}")
+            assert response.status_code == 200
+            assert response.json()["id"] == calculation.id
     finally:
         app.dependency_overrides.pop(get_emission_calculation_service, None)
         app.dependency_overrides.pop(get_optional_current_user, None)

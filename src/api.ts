@@ -101,6 +101,36 @@ export async function fetchDashboard(selectedFactoryId = factoryId): Promise<Das
   return response.json() as Promise<DashboardResponse>;
 }
 
+export type ApiCalculationBreakdown = {
+  id: number;
+  calculation_id: number;
+  category: string;
+  source: string;
+  activity_quantity: string;
+  activity_unit: string;
+  applied_factor: string;
+  kg_co2e: string;
+  percentage_of_total: string;
+  explanation: string | null;
+};
+
+export type ApiCalculation = {
+  id: number;
+  reporting_period_id: number;
+  total_kg_co2e: string;
+  calculation_version: string;
+  status: string;
+  breakdown: ApiCalculationBreakdown[];
+};
+
+export async function fetchCalculation(calculationId: number): Promise<ApiCalculation> {
+  const response = await authorizedFetch(`/calculations/${calculationId}`);
+  if (!response.ok) {
+    throw new Error(`Calculation request failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiCalculation>;
+}
+
 export type ApiRecommendation = {
   id: number;
   name: string;
