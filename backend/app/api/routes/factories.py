@@ -5,7 +5,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_factory_service, get_roadmap_action_service
+from app.api.dependencies import (
+    get_factory_service,
+    get_optional_current_user,
+    get_roadmap_action_service,
+)
 from app.db.models.activity import (
     EnergyUsage,
     MaterialUsage,
@@ -34,6 +38,7 @@ from app.schemas.factory import (
 )
 from app.services.factory_service import FactoryService
 from app.services.roadmap_action_service import RoadmapActionService
+from app.db.models.user import User
 from app.schemas.roadmap_action import (
     RoadmapActionCreate,
     RoadmapActionRead,
@@ -60,9 +65,18 @@ def _period_or_404(service: FactoryService, factory_id: int, period_id: int):
     return period
 
 
+OptionalUser = Annotated[User | None, Depends(get_optional_current_user)]
+
 @router.post("", response_model=FactoryRead, status_code=status.HTTP_201_CREATED)
-def create_factory(payload: FactoryCreate, service: Service):
-    return service.create_factory(**payload.model_dump())
+def create_factory(
+    payload: FactoryCreate,
+    service: Service,
+    user: OptionalUser,
+):
+    values = payload.model_dump()
+    if user is not None:
+        values["owner_id"] = user.id
+    return service.create_factory(**values)
 
 
 @router.get("", response_model=list[FactoryRead])

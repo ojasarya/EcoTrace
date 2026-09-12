@@ -18,6 +18,11 @@ class Factory(TimestampMixin, Base):
     industry_type: Mapped[str] = mapped_column(String(100), nullable=False)
     location: Mapped[str] = mapped_column(String(200), nullable=False)
     production_unit: Mapped[str] = mapped_column(String(50), nullable=False)
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     reporting_periods: Mapped[list["ReportingPeriod"]] = relationship(
         back_populates="factory",

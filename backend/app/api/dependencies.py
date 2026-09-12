@@ -116,3 +116,14 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+
+def get_optional_current_user(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(bearer_scheme)
+    ],
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> User | None:
+    if credentials is None:
+        return None
+    return service.user_from_token(credentials.credentials)
