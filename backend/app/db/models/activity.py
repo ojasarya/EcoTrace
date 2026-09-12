@@ -1,5 +1,7 @@
 """Factory activity persistence models."""
 
+from decimal import Decimal
+
 from sqlalchemy import ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,7 +18,7 @@ class ProductionActivity(Base):
         index=True,
     )
     process_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    quantity: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     unit: Mapped[str] = mapped_column(String(50), nullable=False)
 
     reporting_period: Mapped["ReportingPeriod"] = relationship(
@@ -34,12 +36,12 @@ class EnergyUsage(Base):
         index=True,
     )
     source: Mapped[str] = mapped_column(String(100), nullable=False)
-    quantity: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     unit: Mapped[str] = mapped_column(String(50), nullable=False)
-    renewable_percentage: Mapped[float] = mapped_column(
+    renewable_percentage: Mapped[Decimal] = mapped_column(
         Numeric(5, 2),
         nullable=False,
-        default=0,
+        default=Decimal("0"),
     )
 
     reporting_period: Mapped["ReportingPeriod"] = relationship(
@@ -58,12 +60,12 @@ class MaterialUsage(Base):
     )
     material_name: Mapped[str] = mapped_column(String(150), nullable=False)
     material_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    quantity: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     unit: Mapped[str] = mapped_column(String(50), nullable=False)
-    recycled_content_percentage: Mapped[float] = mapped_column(
+    recycled_content_percentage: Mapped[Decimal] = mapped_column(
         Numeric(5, 2),
         nullable=False,
-        default=0,
+        default=Decimal("0"),
     )
 
     reporting_period: Mapped["ReportingPeriod"] = relationship(
@@ -81,13 +83,13 @@ class WasteRecord(Base):
         index=True,
     )
     waste_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    quantity: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     unit: Mapped[str] = mapped_column(String(50), nullable=False)
     disposal_method: Mapped[str] = mapped_column(String(100), nullable=False)
-    recycled_quantity: Mapped[float] = mapped_column(
+    recycled_quantity: Mapped[Decimal] = mapped_column(
         Numeric(18, 6),
         nullable=False,
-        default=0,
+        default=Decimal("0"),
     )
 
     reporting_period: Mapped["ReportingPeriod"] = relationship(
@@ -106,9 +108,9 @@ class TransportationActivity(Base):
     )
     mode: Mapped[str] = mapped_column(String(100), nullable=False)
     direction: Mapped[str] = mapped_column(String(50), nullable=False)
-    distance: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    distance: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     distance_unit: Mapped[str] = mapped_column(String(50), nullable=False)
-    load_quantity: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
+    load_quantity: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
     load_unit: Mapped[str] = mapped_column(String(50), nullable=False)
 
     reporting_period: Mapped["ReportingPeriod"] = relationship(
