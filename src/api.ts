@@ -24,9 +24,41 @@ export type DashboardResponse = {
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1").replace(/\/$/, "");
 const factoryId = import.meta.env.VITE_FACTORY_ID ?? "1";
+const tokenKey = "ecotrace_access_token";
+
+export type AuthUser = {
+  id: number;
+  email: string;
+  is_active: boolean;
+};
+
+export function getAccessToken(): string | null {
+  return window.localStorage.getItem(tokenKey);
+}
+
+export function clearAccessToken(): void {
+  window.localStorage.removeItem(tokenKey);
+}
+
+export async function login(email: string, password: string): Promise<AuthUser> {
+  const response = await fetch(`${apiBaseUrl}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) {
+    throw new Error(response.status === 401 ? "Invalid email or password" : `Login failed (${response.status})`);
+  }
+  const result = await response.json() as { access_token: string; user: AuthUser };
+  window.localStorage.setItem(tokenKey, result.access_token);
+  return result.user;
+}
 
 export async function fetchDashboard(): Promise<DashboardResponse> {
-  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/dashboard`);
+  const token = getAccessToken();
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/dashboard`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!response.ok) {
     throw new Error(`Dashboard request failed (${response.status})`);
   }
