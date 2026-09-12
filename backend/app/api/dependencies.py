@@ -15,6 +15,10 @@ from app.services.roadmap_action_service import RoadmapActionService
 from app.services.anomaly_service import AnomalyService
 from app.services.report_service import ReportService
 from app.services.auth_service import AuthService
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from typing import Annotated
+from app.db.models.user import User
 
 
 def get_factory_service() -> Generator[FactoryService, None, None]:
@@ -87,3 +91,28 @@ def get_report_service() -> Generator[ReportService, None, None]:
 def get_auth_service() -> Generator[AuthService, None, None]:
     for session in get_db():
         yield AuthService(session)
+
+
+bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(bearer_scheme)
+    ],
+    service: Annotated[AuthService, Depends(get_auth_service)],
+) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = service.user_from_token(credentials.credentials)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or inactive token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user

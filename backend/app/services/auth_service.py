@@ -35,6 +35,16 @@ class AuthService:
             return None
         return user
 
+    def user_from_token(self, token: str) -> User | None:
+        settings = get_settings()
+        try:
+            payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+            user_id = int(payload["sub"])
+        except (jwt.InvalidTokenError, KeyError, TypeError, ValueError):
+            return None
+        user = self.session.get(User, user_id)
+        return user if user is not None and user.is_active else None
+
     @staticmethod
     def token_for(user: User) -> str:
         settings = get_settings()

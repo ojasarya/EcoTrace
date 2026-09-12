@@ -4,12 +4,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.dependencies import get_auth_service
+from app.api.dependencies import get_auth_service, get_current_user
+from app.db.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenRead, UserRead
 from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 Service = Annotated[AuthService, Depends(get_auth_service)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -26,3 +28,8 @@ def login(payload: LoginRequest, service: Service):
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     return {"access_token": service.token_for(user), "user": user}
+
+
+@router.get("/me", response_model=UserRead)
+def current_user(user: CurrentUser):
+    return user

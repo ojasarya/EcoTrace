@@ -17,3 +17,5 @@ def test_auth_register_login_and_token(monkeypatch) -> None:
         assert service.login("USER@example.com", "correct horse battery") is not None
         assert service.login("user@example.com", "wrong password") is None
         assert service.token_for(user)
+        assert service.user_from_token(service.token_for(user)).id == user.id
+        assert service.user_from_token("not-a-token") is None
