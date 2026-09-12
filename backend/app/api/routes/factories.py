@@ -1,0 +1,231 @@
+"""Factory, reporting-period, and activity input endpoints."""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_factory_service
+from app.db.models.activity import (
+    EnergyUsage,
+    MaterialUsage,
+    ProductionActivity,
+    TransportationActivity,
+    WasteRecord,
+)
+from app.schemas.activity import (
+    EnergyUsageCreate,
+    EnergyUsageRead,
+    MaterialUsageCreate,
+    MaterialUsageRead,
+    ProductionActivityCreate,
+    ProductionActivityRead,
+    TransportationActivityCreate,
+    TransportationActivityRead,
+    WasteRecordCreate,
+    WasteRecordRead,
+)
+from app.schemas.factory import (
+    FactoryCreate,
+    FactoryRead,
+    FactoryUpdate,
+    ReportingPeriodCreate,
+    ReportingPeriodRead,
+)
+from app.services.factory_service import FactoryService
+
+router = APIRouter(prefix="/factories", tags=["factories"])
+Service = Annotated[FactoryService, Depends(get_factory_service)]
+
+
+def _factory_or_404(service: FactoryService, factory_id: int):
+    factory = service.get_factory(factory_id)
+    if factory is None:
+        raise HTTPException(status_code=404, detail="Factory not found")
+    return factory
+
+
+def _period_or_404(service: FactoryService, factory_id: int, period_id: int):
+    _factory_or_404(service, factory_id)
+    period = service.get_period(factory_id, period_id)
+    if period is None:
+        raise HTTPException(status_code=404, detail="Reporting period not found")
+    return period
+
+
+@router.post("", response_model=FactoryRead, status_code=status.HTTP_201_CREATED)
+def create_factory(payload: FactoryCreate, service: Service):
+    return service.create_factory(**payload.model_dump())
+
+
+@router.get("", response_model=list[FactoryRead])
+def list_factories(service: Service):
+    return service.list_factories()
+
+
+@router.get("/{factory_id}", response_model=FactoryRead)
+def get_factory(factory_id: int, service: Service):
+    return _factory_or_404(service, factory_id)
+
+
+@router.patch("/{factory_id}", response_model=FactoryRead)
+def update_factory(factory_id: int, payload: FactoryUpdate, service: Service):
+    factory = _factory_or_404(service, factory_id)
+    return service.update_factory(
+        factory,
+        **payload.model_dump(exclude_unset=True),
+    )
+
+
+@router.delete("/{factory_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_factory(factory_id: int, service: Service):
+    service.delete_factory(_factory_or_404(service, factory_id))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{factory_id}/periods",
+    response_model=ReportingPeriodRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_period(factory_id: int, payload: ReportingPeriodCreate, service: Service):
+    factory = _factory_or_404(service, factory_id)
+    return service.create_period(factory, **payload.model_dump())
+
+
+@router.get("/{factory_id}/periods", response_model=list[ReportingPeriodRead])
+def list_periods(factory_id: int, service: Service):
+    _factory_or_404(service, factory_id)
+    return service.list_periods(factory_id)
+
+
+@router.post(
+    "/{factory_id}/periods/{period_id}/production",
+    response_model=ProductionActivityRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_production_activity(
+    factory_id: int,
+    period_id: int,
+    payload: ProductionActivityCreate,
+    service: Service,
+):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.create_activity(
+        period,
+        ProductionActivity,
+        **payload.model_dump(),
+    )
+
+
+@router.get(
+    "/{factory_id}/periods/{period_id}/production",
+    response_model=list[ProductionActivityRead],
+)
+def list_production_activity(factory_id: int, period_id: int, service: Service):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.list_activities(period, ProductionActivity)
+
+
+@router.post(
+    "/{factory_id}/periods/{period_id}/energy",
+    response_model=EnergyUsageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_energy_usage(
+    factory_id: int,
+    period_id: int,
+    payload: EnergyUsageCreate,
+    service: Service,
+):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.create_activity(period, EnergyUsage, **payload.model_dump())
+
+
+@router.get(
+    "/{factory_id}/periods/{period_id}/energy",
+    response_model=list[EnergyUsageRead],
+)
+def list_energy_usage(factory_id: int, period_id: int, service: Service):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.list_activities(period, EnergyUsage)
+
+
+@router.post(
+    "/{factory_id}/periods/{period_id}/materials",
+    response_model=MaterialUsageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_material_usage(
+    factory_id: int,
+    period_id: int,
+    payload: MaterialUsageCreate,
+    service: Service,
+):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.create_activity(period, MaterialUsage, **payload.model_dump())
+
+
+@router.get(
+    "/{factory_id}/periods/{period_id}/materials",
+    response_model=list[MaterialUsageRead],
+)
+def list_material_usage(factory_id: int, period_id: int, service: Service):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.list_activities(period, MaterialUsage)
+
+
+@router.post(
+    "/{factory_id}/periods/{period_id}/waste",
+    response_model=WasteRecordRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_waste_record(
+    factory_id: int,
+    period_id: int,
+    payload: WasteRecordCreate,
+    service: Service,
+):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.create_activity(period, WasteRecord, **payload.model_dump())
+
+
+@router.get(
+    "/{factory_id}/periods/{period_id}/waste",
+    response_model=list[WasteRecordRead],
+)
+def list_waste_records(factory_id: int, period_id: int, service: Service):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.list_activities(period, WasteRecord)
+
+
+@router.post(
+    "/{factory_id}/periods/{period_id}/transportation",
+    response_model=TransportationActivityRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_transportation_activity(
+    factory_id: int,
+    period_id: int,
+    payload: TransportationActivityCreate,
+    service: Service,
+):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.create_activity(
+        period,
+        TransportationActivity,
+        **payload.model_dump(),
+    )
+
+
+@router.get(
+    "/{factory_id}/periods/{period_id}/transportation",
+    response_model=list[TransportationActivityRead],
+)
+def list_transportation_activity(
+    factory_id: int,
+    period_id: int,
+    service: Service,
+):
+    period = _period_or_404(service, factory_id, period_id)
+    return service.list_activities(period, TransportationActivity)
