@@ -12,6 +12,7 @@ from app.services.simulation_service import SimulationService
 from app.services.roadmap_service import RoadmapService
 from app.services.dashboard_service import DashboardService
 from app.services.roadmap_action_service import RoadmapActionService
+from app.services.anomaly_service import AnomalyService
 
 
 def get_factory_service() -> Generator[FactoryService, None, None]:
@@ -69,3 +70,8 @@ def get_dashboard_service() -> Generator[DashboardService, None, None]:
 def get_roadmap_action_service() -> Generator[RoadmapActionService, None, None]:
     for session in get_db():
         yield RoadmapActionService(session)
+
+
+def get_anomaly_service() -> Generator[AnomalyService, None, None]:
+    for session in get_db():
+        yield AnomalyService(EmissionCalculationService(session))
