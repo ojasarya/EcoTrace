@@ -122,8 +122,12 @@ def get_optional_current_user(
     credentials: Annotated[
         HTTPAuthorizationCredentials | None, Depends(bearer_scheme)
     ],
-    service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> User | None:
     if credentials is None:
         return None
-    return service.user_from_token(credentials.credentials)
+    session_generator = get_db()
+    session = next(session_generator)
+    try:
+        return AuthService(session).user_from_token(credentials.credentials)
+    finally:
+        session_generator.close()

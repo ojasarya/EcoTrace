@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_auth_service
+from app.api.dependencies import get_auth_service, get_optional_current_user
 from app.db.base import Base
 from app.main import app
 from app.services.auth_service import AuthService
@@ -63,3 +63,11 @@ def test_auth_api_register_login_and_current_user(monkeypatch) -> None:
             )
     finally:
         app.dependency_overrides.pop(get_auth_service, None)
+
+
+def test_optional_user_does_not_open_database_without_credentials(monkeypatch) -> None:
+    def fail_if_database_is_open():
+        raise AssertionError("database should not be opened")
+
+    monkeypatch.setattr("app.api.dependencies.get_db", fail_if_database_is_open)
+    assert get_optional_current_user(None) is None
