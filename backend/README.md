@@ -66,6 +66,9 @@ python -m uvicorn app.main:app --reload
 The interactive API documentation is available at
 `http://127.0.0.1:8000/docs`.
 
+Browser requests from the frontend origin configured in `CORS_ORIGINS`
+(default `http://localhost:5173`) are permitted by the API.
+
 ## Health check
 
 ```text
