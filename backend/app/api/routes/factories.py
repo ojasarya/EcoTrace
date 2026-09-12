@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import (
     get_factory_service,
+    get_current_user,
     get_optional_current_user,
     get_roadmap_action_service,
 )
@@ -66,6 +67,7 @@ def _period_or_404(service: FactoryService, factory_id: int, period_id: int):
 
 
 OptionalUser = Annotated[User | None, Depends(get_optional_current_user)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 @router.post("", response_model=FactoryRead, status_code=status.HTTP_201_CREATED)
 def create_factory(
@@ -82,6 +84,11 @@ def create_factory(
 @router.get("", response_model=list[FactoryRead])
 def list_factories(service: Service):
     return service.list_factories()
+
+
+@router.get("/mine", response_model=list[FactoryRead])
+def list_my_factories(service: Service, user: CurrentUser):
+    return service.list_factories_for_owner(user.id)
 
 
 @router.get("/{factory_id}", response_model=FactoryRead)

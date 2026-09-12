@@ -34,6 +34,15 @@ class FactoryService:
     def list_factories(self) -> list[Factory]:
         return list(self.session.scalars(select(Factory).order_by(Factory.id)))
 
+    def list_factories_for_owner(self, owner_id: int) -> list[Factory]:
+        return list(
+            self.session.scalars(
+                select(Factory)
+                .where(Factory.owner_id == owner_id)
+                .order_by(Factory.id)
+            )
+        )
+
     def get_factory(self, factory_id: int) -> Factory | None:
         return self.session.get(Factory, factory_id)
 
