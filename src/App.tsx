@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { initialRoadmap, formatINR, recommendations, sources, trend, type Recommendation, type RoadmapItem } from "./data";
 import { calculateEmissionIntensity, calculateScenario } from "./utils";
-import { fetchDashboard, login, register, type DashboardResponse } from "./api";
+import { fetchDashboard, fetchFactories, login, register, type DashboardResponse, type Factory as ApiFactory } from "./api";
 
 const pageNames: Record<string, string> = {
   "/dashboard": "Overview", "/factory-data": "Factory data", "/emissions": "Emissions analysis",
@@ -54,10 +54,17 @@ function Shell({ children, roadmap, setRoadmap }: { children: ReactNode; roadmap
 
 function Overview({ setRoadmap }: { setRoadmap: Dispatch<SetStateAction<RoadmapItem[]>> }) {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
+  const [factory, setFactory] = useState<ApiFactory | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    fetchDashboard()
+    fetchFactories()
+      .then((factories) => {
+        const selected = factories[0];
+        if (!selected) throw new Error("No accessible factories found");
+        if (active) setFactory(selected);
+        return fetchDashboard(selected.id);
+      })
       .then((result) => { if (active) setDashboard(result); })
       .catch((error: unknown) => {
         if (active) setDashboardError(error instanceof Error ? error.message : "Unable to load live dashboard");

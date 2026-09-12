@@ -32,6 +32,14 @@ export type AuthUser = {
   is_active: boolean;
 };
 
+export type Factory = {
+  id: number;
+  name: string;
+  industry_type: string;
+  location: string;
+  production_unit: string;
+};
+
 export function getAccessToken(): string | null {
   return window.localStorage.getItem(tokenKey);
 }
@@ -66,11 +74,23 @@ export async function register(email: string, password: string): Promise<AuthUse
   return login(email, password);
 }
 
-export async function fetchDashboard(): Promise<DashboardResponse> {
+async function authorizedFetch(path: string): Promise<Response> {
   const token = getAccessToken();
-  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/dashboard`, {
+  return fetch(`${apiBaseUrl}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+}
+
+export async function fetchFactories(): Promise<Factory[]> {
+  const response = await authorizedFetch("/factories");
+  if (!response.ok) {
+    throw new Error(`Factory request failed (${response.status})`);
+  }
+  return response.json() as Promise<Factory[]>;
+}
+
+export async function fetchDashboard(selectedFactoryId = factoryId): Promise<DashboardResponse> {
+  const response = await authorizedFetch(`/factories/${selectedFactoryId}/dashboard`);
   if (!response.ok) {
     throw new Error(`Dashboard request failed (${response.status})`);
   }
