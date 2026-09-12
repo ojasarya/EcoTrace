@@ -34,6 +34,10 @@ Copy `.env.example` to `.env` and set `DATABASE_URL` to the PostgreSQL
 connection string for your local installation. Do not commit `.env` or put
 real credentials in `.env.example`.
 
+Set `JWT_SECRET` to a random secret of at least 32 characters before using
+authentication outside local development. `JWT_EXPIRATION_MINUTES` controls
+access-token lifetime and defaults to 60 minutes.
+
 Apply the initial schema from the `backend` directory with:
 
 ```powershell
