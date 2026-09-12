@@ -43,6 +43,18 @@ python -m alembic upgrade head
 The API does not create database tables automatically. Use Alembic for all
 schema changes.
 
+## Seed demo data
+
+After applying migrations, from the `backend` directory run:
+
+```powershell
+python -m scripts.seed_demo
+```
+
+The command creates one factory, a reporting period, representative activity
+data, emission factors, interventions, and a persisted calculation. It is
+idempotent for the `EcoTrace Demo Factory` record.
+
 ## Run the API
 
 From the `backend` directory:
