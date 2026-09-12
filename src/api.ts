@@ -100,3 +100,17 @@ export async function fetchDashboard(selectedFactoryId = factoryId): Promise<Das
   }
   return response.json() as Promise<DashboardResponse>;
 }
+
+export async function downloadCalculationCsv(calculationId: number): Promise<void> {
+  const response = await authorizedFetch(`/calculations/${calculationId}/export.csv`);
+  if (!response.ok) {
+    throw new Error(`Report request failed (${response.status})`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `ecotrace-calculation-${calculationId}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
