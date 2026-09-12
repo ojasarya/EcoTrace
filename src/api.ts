@@ -131,6 +131,16 @@ export async function fetchCalculation(calculationId: number): Promise<ApiCalcul
   return response.json() as Promise<ApiCalculation>;
 }
 
+export type ApiHotspot = DashboardResponse["hotspots"][number];
+
+export async function fetchHotspots(calculationId: number): Promise<ApiHotspot[]> {
+  const response = await authorizedFetch(`/calculations/${calculationId}/hotspots`);
+  if (!response.ok) {
+    throw new Error(`Hotspot request failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiHotspot[]>;
+}
+
 export type ApiRecommendation = {
   id: number;
   name: string;
