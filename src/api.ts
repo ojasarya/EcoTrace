@@ -141,6 +141,36 @@ export async function fetchHotspots(calculationId: number): Promise<ApiHotspot[]
   return response.json() as Promise<ApiHotspot[]>;
 }
 
+export type ApiRoadmapAction = {
+  sequence: number;
+  recommendation_rank: number;
+  intervention_id: number;
+  intervention_name: string;
+  target_source: string;
+  phase: string;
+  estimated_cost: string;
+  estimated_reduction_kg_co2e: string;
+  cumulative_cost: string;
+  cumulative_reduction_kg_co2e: string;
+  rationale: string;
+};
+
+export type ApiRoadmap = {
+  calculation_id: number;
+  total_actions: number;
+  total_estimated_cost: string;
+  total_estimated_reduction_kg_co2e: string;
+  actions: ApiRoadmapAction[];
+};
+
+export async function fetchRoadmap(calculationId: number): Promise<ApiRoadmap> {
+  const response = await authorizedFetch(`/calculations/${calculationId}/roadmap`);
+  if (!response.ok) {
+    throw new Error(`Roadmap request failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiRoadmap>;
+}
+
 export type ApiSimulation = {
   calculation_id: number;
   baseline_kg_co2e: string;

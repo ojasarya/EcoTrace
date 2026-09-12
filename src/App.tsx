@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { initialRoadmap, formatINR, recommendations, sources, trend, type Recommendation, type RoadmapItem } from "./data";
 import { calculateEmissionIntensity, calculateScenario } from "./utils";
-import { clearAccessToken, downloadCalculationCsv, fetchCalculation, fetchDashboard, fetchFactories, fetchHotspots, fetchRecommendations, login, register, simulateCalculation, type ApiCalculation, type ApiHotspot, type DashboardResponse, type Factory as ApiFactory } from "./api";
+import { clearAccessToken, downloadCalculationCsv, fetchCalculation, fetchDashboard, fetchFactories, fetchHotspots, fetchRecommendations, fetchRoadmap, login, register, simulateCalculation, type ApiCalculation, type ApiHotspot, type DashboardResponse, type Factory as ApiFactory, type ApiRoadmap } from "./api";
 
 const pageNames: Record<string, string> = {
   "/dashboard": "Overview", "/factory-data": "Factory data", "/emissions": "Emissions analysis",
@@ -179,7 +179,55 @@ function Simulator({ onSave }: { onSave: (message: string) => void }) {
   return <><div className="page-header"><div><div className="eyebrow">Simulate</div><h1>What-if simulator</h1><p>Test sustainability interventions before changing your operations.</p></div><div className="header-actions"><Button variant="secondary" onClick={() => setControls({ recycled: 0, renewable: 0, transport: 0, waste: 0, efficiency: 0 })}>Reset scenario</Button><Button onClick={() => onSave("Scenario saved successfully")}><Check size={16} /> Save scenario</Button></div></div>{error && <div className="toast"><AlertTriangle size={17} /> Showing local scenario estimate: {error}</div>}<div className="simulator-layout"><Card className="control-card"><div className="card-heading"><div><Badge tone="green">Scenario builder</Badge><h2>Adjust the levers</h2><p>Results update instantly from your {result.baseline.toLocaleString()} kg CO₂e baseline.</p></div><SlidersHorizontal size={20} /></div>{[{ key: "recycled", label: "Recycled material substitution", max: 100, unit: "%" }, { key: "renewable", label: "Renewable electricity", max: 100, unit: "%" }, { key: "transport", label: "Transport optimization", max: 50, unit: "%" }, { key: "waste", label: "Waste recycling", max: 100, unit: "%" }, { key: "efficiency", label: "Energy efficiency improvement", max: 40, unit: "%" }].map(({ key, label, max, unit }) => <label className="slider-control" key={key}><div><span>{label}</span><strong>{controls[key as keyof typeof controls]}{unit}</strong></div><input type="range" min="0" max={max} value={controls[key as keyof typeof controls]} onChange={(e) => set(key as keyof typeof controls, Number(e.target.value))} /></label>)}<div className="scenario-note"><Sparkles size={16} /><span>Try combining material substitution with energy efficiency for a balanced intervention plan.</span></div></Card><div className="sim-results"><div className="sim-kpis"><Card><span>Baseline emissions</span><strong>{result.baseline.toLocaleString()}</strong><small>kg CO₂e / month</small></Card><Card className="highlight"><span>Scenario emissions</span><strong>{result.emissions.toLocaleString()}</strong><small>kg CO₂e / month</small></Card><Card><span>CO₂ reduction</span><strong className="green-text">{result.reduction.toLocaleString()}</strong><small>kg CO₂e / month</small></Card><Card><span>Reduction</span><strong className="green-text">{result.reductionPercent}%</strong><small>of baseline</small></Card></div><Card className="comparison-card"><SectionTitle title="Scenario comparison" detail="Monthly emissions · lower is better" /><div className="compare-bars"><div><span>Current baseline</span><strong>{result.baseline.toLocaleString()} kg</strong><div className="compare-track"><i style={{ width: "100%" }} /></div></div><div><span>Simulated scenario</span><strong>{result.emissions.toLocaleString()} kg</strong><div className="compare-track"><i className="green-bar" style={{ width: `${result.emissions / result.baseline * 100}%` }} /></div></div></div><TrendChart compact /></Card><Card className="scenario-summary"><div className="summary-icon"><Sparkles size={18} /></div><div><Badge tone="green">Scenario summary</Badge><h3>Estimated monthly emissions could decrease by {result.reductionPercent}%.</h3><p>This intervention set saves <b>{result.reduction.toLocaleString()} kg CO₂e</b> at an estimated investment based on the selected levers.</p></div><div className="summary-actions"><Button onClick={() => onSave("Scenario added to roadmap")}><RouteIcon size={15} /> Add to roadmap</Button></div></Card></div></div></>;
 }
 
-function Roadmap({ roadmap, setRoadmap }: { roadmap: RoadmapItem[]; setRoadmap: Dispatch<SetStateAction<RoadmapItem[]>> }) { const total = roadmap.reduce((sum, i) => sum + i.reduction, 0); const done = roadmap.filter((i) => i.status === "Completed").length; return <><div className="page-header"><div><div className="eyebrow">Prioritize · Act</div><h1>Action roadmap</h1><p>Your prioritized path from emissions insight to implementation.</p></div><Button onClick={() => setRoadmap(roadmap.map((r, i) => i === 0 ? { ...r, status: "Completed" } : r))}><Check size={15} /> Mark next action complete</Button></div><div className="roadmap-summary"><div><span>Total potential reduction</span><strong>{total.toLocaleString()} <small>kg CO₂e / month</small></strong></div><div><span>Potential reduction</span><strong>{Math.round(total / 100)}%</strong></div><div><span>Actions completed</span><strong>{done} <small>/ {roadmap.length}</small></strong></div><div className="progress-summary"><span>Overall progress</span><div className="progress"><i style={{ width: `${done / roadmap.length * 100}%` }} /></div><strong>{Math.round(done / roadmap.length * 100)}%</strong></div></div><Card className="roadmap-card"><div className="roadmap-line" />{roadmap.map((item, index) => <div className="roadmap-item" key={item.id}><div className={`roadmap-node status-${item.status.toLowerCase().replace(" ", "-")}`}>{item.status === "Completed" ? <Check size={15} /> : String(index + 1).padStart(2, "0")}</div><div className="roadmap-content"><div className="roadmap-item-top"><div><Badge tone={item.status === "In Progress" ? "blue" : item.status === "Completed" ? "green" : "neutral"}>{item.status}</Badge><h3>{item.title}</h3><p>{item.category} · {item.timeline}</p></div><select value={item.status} onChange={(e) => setRoadmap(roadmap.map((r) => r.id === item.id ? { ...r, status: e.target.value as RoadmapItem["status"] } : r))}><option>Not Started</option><option>Planned</option><option>In Progress</option><option>Completed</option></select></div><div className="roadmap-metrics"><span><strong>{item.priority}/100</strong> priority</span><span><strong>{item.reduction.toLocaleString()}</strong> kg CO₂e/month</span><span><strong>{formatINR(item.cost)}</strong> investment</span></div></div></div>)}</Card></> }
+function Roadmap({ roadmap, setRoadmap }: { roadmap: RoadmapItem[]; setRoadmap: Dispatch<SetStateAction<RoadmapItem[]>> }) {
+  const [liveItems, setLiveItems] = useState<RoadmapItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetchFactories().then((factories) => {
+      const selected = factories[0];
+      if (!selected) throw new Error("No accessible factories found");
+      return fetchDashboard(selected.id);
+    }).then((dashboard) => {
+      if (dashboard.calculation_id === null) throw new Error("No roadmap data available");
+      return fetchRoadmap(dashboard.calculation_id);
+    }).then((result) => {
+      if (!active) return;
+      const mapped = result.actions.map((action, index) => ({
+        id: action.intervention_id,
+        title: action.intervention_name,
+        category: action.target_source,
+        reduction: Number(action.estimated_reduction_kg_co2e),
+        cost: Number(action.estimated_cost),
+        roi: Number(action.estimated_reduction_kg_co2e) / Number(action.estimated_cost || 1),
+        feasibility: action.phase,
+        payback: `${action.phase} phase`,
+        priority: action.recommendation_rank * 10,
+        difficulty: action.phase,
+        waste: action.target_source,
+        description: action.rationale,
+        status: (index === 0 ? "Planned" : index === 1 ? "In Progress" : "Not Started") as RoadmapItem["status"],
+        timeline: index === 0 ? "0–3 months" : index === 1 ? "1–6 months" : "0–2 months",
+      }));
+      setLiveItems(mapped);
+      setError(null);
+    }).catch((reason: unknown) => {
+      if (active) {
+        setLiveItems(null);
+        setError(reason instanceof Error ? reason.message : "Unable to load live roadmap");
+      }
+    });
+    return () => { active = false; };
+  }, []);
+
+  const items = liveItems ?? roadmap;
+  const total = items.reduce((sum, i) => sum + i.reduction, 0);
+  const done = items.filter((i) => i.status === "Completed").length;
+  const updateStatus = (id: number, status: RoadmapItem["status"]) => {
+    setRoadmap((prev) => prev.map((r) => r.id === id ? { ...r, status } : r));
+    setLiveItems((prev) => prev ? prev.map((r) => r.id === id ? { ...r, status } : r) : null);
+  };
+  return <><div className="page-header"><div><div className="eyebrow">Prioritize · Act</div><h1>Action roadmap</h1><p>Your prioritized path from emissions insight to implementation.</p></div><Button onClick={() => setRoadmap((prev) => prev.map((r, i) => i === 0 ? { ...r, status: "Completed" } : r))}><Check size={15} /> Mark next action complete</Button></div>{error && <div className="toast"><AlertTriangle size={17} /> Showing local roadmap: {error}</div>}<div className="roadmap-summary"><div><span>Total potential reduction</span><strong>{total.toLocaleString()} <small>kg CO₂e / month</small></strong></div><div><span>Potential reduction</span><strong>{Math.round(total / 100)}%</strong></div><div><span>Actions completed</span><strong>{done} <small>/ {items.length}</small></strong></div><div className="progress-summary"><span>Overall progress</span><div className="progress"><i style={{ width: `${items.length ? done / items.length * 100 : 0}%` }} /></div><strong>{items.length ? Math.round(done / items.length * 100) : 0}%</strong></div></div><Card className="roadmap-card"><div className="roadmap-line" />{items.map((item, index) => <div className="roadmap-item" key={item.id}><div className={`roadmap-node status-${item.status.toLowerCase().replace(" ", "-")}`}>{item.status === "Completed" ? <Check size={15} /> : String(index + 1).padStart(2, "0")}</div><div className="roadmap-content"><div className="roadmap-item-top"><div><Badge tone={item.status === "In Progress" ? "blue" : item.status === "Completed" ? "green" : "neutral"}>{item.status}</Badge><h3>{item.title}</h3><p>{item.category} · {item.timeline}</p></div><select value={item.status} onChange={(e) => updateStatus(item.id, e.target.value as RoadmapItem["status"])}><option>Not Started</option><option>Planned</option><option>In Progress</option><option>Completed</option></select></div><div className="roadmap-metrics"><span><strong>{item.priority}/100</strong> priority</span><span><strong>{item.reduction.toLocaleString()}</strong> kg CO₂e/month</span><span><strong>{formatINR(item.cost)}</strong> investment</span></div></div></div>)}</Card></> }
 
 function Reports() {
   const [exported, setExported] = useState(false);
