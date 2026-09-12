@@ -28,6 +28,7 @@ def test_model_metadata_contains_initial_schema() -> None:
         "emission_factors",
         "emission_calculations",
         "emission_breakdowns",
+        "interventions",
     }
 
     assert expected_tables == set(Base.metadata.tables)

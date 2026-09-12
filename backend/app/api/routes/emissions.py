@@ -8,6 +8,7 @@ from app.api.dependencies import (
     get_emission_calculation_service,
     get_emission_factor_service,
     get_hotspot_service,
+    get_intervention_service,
 )
 from app.db.models.factory import ReportingPeriod
 from app.schemas.emission import (
@@ -16,9 +17,15 @@ from app.schemas.emission import (
     EmissionFactorRead,
 )
 from app.schemas.hotspot import HotspotRead
+from app.schemas.intervention import (
+    InterventionCreate,
+    InterventionRead,
+    RecommendationRead,
+)
 from app.services.emission_calculation_service import EmissionCalculationService
 from app.services.emission_factor_service import EmissionFactorService
 from app.services.hotspot_service import HotspotService
+from app.services.intervention_service import InterventionService
 
 router = APIRouter(tags=["emissions"])
 FactorService = Annotated[
@@ -32,6 +39,10 @@ CalculationService = Annotated[
 HotspotAnalysisService = Annotated[
     HotspotService,
     Depends(get_hotspot_service),
+]
+InterventionCatalogService = Annotated[
+    InterventionService,
+    Depends(get_intervention_service),
 ]
 
 
@@ -87,6 +98,55 @@ def get_hotspots(calculation_id: int, service: HotspotAnalysisService):
     if hotspots is None:
         raise HTTPException(status_code=404, detail="Calculation not found")
     return hotspots
+
+
+@router.post(
+    "/interventions",
+    response_model=InterventionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_intervention(
+    payload: InterventionCreate,
+    service: InterventionCatalogService,
+):
+    return service.create_intervention(**payload.model_dump())
+
+
+@router.get("/interventions", response_model=list[InterventionRead])
+def list_interventions(service: InterventionCatalogService):
+    return service.list_interventions()
+
+
+@router.get(
+    "/calculations/{calculation_id}/recommendations",
+    response_model=list[RecommendationRead],
+)
+def get_recommendations(
+    calculation_id: int,
+    hotspot_service: HotspotAnalysisService,
+    intervention_service: InterventionCatalogService,
+):
+    hotspots = hotspot_service.get_hotspots(calculation_id)
+    if hotspots is None:
+        raise HTTPException(status_code=404, detail="Calculation not found")
+    return [
+        {
+            "id": intervention.id,
+            "name": intervention.name,
+            "category": intervention.category,
+            "target_source": intervention.target_source,
+            "description": intervention.description,
+            "estimated_cost": intervention.estimated_cost,
+            "estimated_reduction_percentage": intervention.estimated_reduction_percentage,
+            "feasibility": intervention.feasibility,
+            "urgency": intervention.urgency,
+            "hotspot_rank": hotspot.rank,
+            "hotspot_source": hotspot.source,
+            "hotspot_percentage": hotspot.percentage_of_total,
+            "rationale": rationale,
+        }
+        for intervention, hotspot, rationale in intervention_service.match(hotspots)
+    ]
 
 
 @router.get(

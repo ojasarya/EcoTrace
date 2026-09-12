@@ -10,6 +10,7 @@ from app.db.models.activity import (
 from app.db.models.calculation import EmissionBreakdown, EmissionCalculation
 from app.db.models.emission_factor import EmissionFactor
 from app.db.models.factory import Factory, ReportingPeriod
+from app.db.models.intervention import Intervention
 
 __all__ = [
     "EmissionBreakdown",
@@ -22,4 +23,5 @@ __all__ = [
     "ReportingPeriod",
     "TransportationActivity",
     "WasteRecord",
+    "Intervention",
 ]
