@@ -16,6 +16,7 @@ from app.db.models.activity import (
 from app.db.models.calculation import EmissionBreakdown, EmissionCalculation
 from app.db.models.emission_factor import EmissionFactor
 from app.db.models.factory import ReportingPeriod
+from app.db.transactions import commit_or_rollback
 from app.domain.emissions.calculator import (
     EmissionActivity,
     EmissionFactor as DomainEmissionFactor,
@@ -71,7 +72,7 @@ class EmissionCalculationService:
             for item in result.breakdown
         ]
         self.session.add(calculation)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(calculation)
         return calculation
 

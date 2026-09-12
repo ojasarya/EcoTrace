@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.models.user import User
+from app.db.transactions import commit_or_rollback
 
 password_hash = PasswordHash.recommended()
 
@@ -23,7 +24,7 @@ class AuthService:
             raise ValueError("Email is already registered")
         user = User(email=normalized, password_hash=password_hash.hash(password))
         self.session.add(user)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(user)
         return user
 

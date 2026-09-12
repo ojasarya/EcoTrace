@@ -7,6 +7,7 @@ from app.db.models.calculation import EmissionCalculation
 from app.db.models.intervention import Intervention
 from app.db.models.factory import Factory
 from app.db.models.roadmap import RoadmapAction
+from app.db.transactions import commit_or_rollback
 
 
 class RoadmapActionService:
@@ -30,7 +31,7 @@ class RoadmapActionService:
             raise ValueError("Intervention not found")
         action = RoadmapAction(factory_id=factory_id, **values)
         self.session.add(action)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(action)
         return action
 
@@ -49,7 +50,7 @@ class RoadmapActionService:
     def update_action(self, action: RoadmapAction, **values: object) -> RoadmapAction:
         for key, value in values.items():
             setattr(action, key, value)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(action)
         return action
 

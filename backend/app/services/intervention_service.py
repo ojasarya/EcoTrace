@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.intervention import Intervention
+from app.db.transactions import commit_or_rollback
 from app.domain.hotspots import Hotspot
 from app.domain.recommendations import calculate_carbon_roi
 
@@ -19,7 +20,7 @@ class InterventionService:
     def create_intervention(self, **values: object) -> Intervention:
         intervention = Intervention(**values)
         self.session.add(intervention)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(intervention)
         return intervention
 

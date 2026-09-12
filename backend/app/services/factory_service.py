@@ -14,6 +14,7 @@ from app.db.models.activity import (
     WasteRecord,
 )
 from app.db.models.factory import Factory, ReportingPeriod
+from app.db.transactions import commit_or_rollback
 
 ModelT = TypeVar("ModelT")
 
@@ -27,7 +28,7 @@ class FactoryService:
     def create_factory(self, **values: object) -> Factory:
         factory = Factory(**values)
         self.session.add(factory)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(factory)
         return factory
 
@@ -59,18 +60,18 @@ class FactoryService:
     def update_factory(self, factory: Factory, **values: object) -> Factory:
         for key, value in values.items():
             setattr(factory, key, value)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(factory)
         return factory
 
     def delete_factory(self, factory: Factory) -> None:
         self.session.delete(factory)
-        self.session.commit()
+        commit_or_rollback(self.session)
 
     def create_period(self, factory: Factory, **values: object) -> ReportingPeriod:
         period = ReportingPeriod(factory=factory, **values)
         self.session.add(period)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(period)
         return period
 
@@ -99,7 +100,7 @@ class FactoryService:
     ) -> ModelT:
         activity = model(reporting_period=period, **values)
         self.session.add(activity)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(activity)
         return activity
 

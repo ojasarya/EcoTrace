@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models.emission_factor import EmissionFactor
+from app.db.transactions import commit_or_rollback
 
 
 class EmissionFactorService:
@@ -15,7 +16,7 @@ class EmissionFactorService:
     def create_factor(self, **values: object) -> EmissionFactor:
         factor = EmissionFactor(**values)
         self.session.add(factor)
-        self.session.commit()
+        commit_or_rollback(self.session)
         self.session.refresh(factor)
         return factor
 
