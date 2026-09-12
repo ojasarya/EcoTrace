@@ -58,8 +58,30 @@ def _factory_or_404(service: FactoryService, factory_id: int):
     return factory
 
 
-def _period_or_404(service: FactoryService, factory_id: int, period_id: int):
-    _factory_or_404(service, factory_id)
+def _accessible_factory(
+    service: FactoryService,
+    factory_id: int,
+    user: User | None,
+):
+    factory = _factory_or_404(service, factory_id)
+    if factory.owner_id is not None and user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if factory.owner_id is not None and factory.owner_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Factory access denied")
+    return factory
+
+
+def _period_or_404(
+    service: FactoryService,
+    factory_id: int,
+    period_id: int,
+    user: User | None,
+):
+    _accessible_factory(service, factory_id, user)
     period = service.get_period(factory_id, period_id)
     if period is None:
         raise HTTPException(status_code=404, detail="Reporting period not found")
@@ -92,13 +114,18 @@ def list_my_factories(service: Service, user: CurrentUser):
 
 
 @router.get("/{factory_id}", response_model=FactoryRead)
-def get_factory(factory_id: int, service: Service):
-    return _factory_or_404(service, factory_id)
+def get_factory(factory_id: int, service: Service, user: OptionalUser):
+    return _accessible_factory(service, factory_id, user)
 
 
 @router.patch("/{factory_id}", response_model=FactoryRead)
-def update_factory(factory_id: int, payload: FactoryUpdate, service: Service):
-    factory = _factory_or_404(service, factory_id)
+def update_factory(
+    factory_id: int,
+    payload: FactoryUpdate,
+    service: Service,
+    user: OptionalUser,
+):
+    factory = _accessible_factory(service, factory_id, user)
     return service.update_factory(
         factory,
         **payload.model_dump(exclude_unset=True),
@@ -106,8 +133,8 @@ def update_factory(factory_id: int, payload: FactoryUpdate, service: Service):
 
 
 @router.delete("/{factory_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_factory(factory_id: int, service: Service):
-    service.delete_factory(_factory_or_404(service, factory_id))
+def delete_factory(factory_id: int, service: Service, user: OptionalUser):
+    service.delete_factory(_accessible_factory(service, factory_id, user))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -120,9 +147,10 @@ def create_roadmap_action(
     factory_id: int,
     payload: RoadmapActionCreate,
     service: ActionService,
+    factory_service: Service,
+    user: OptionalUser,
 ):
-    if not service.factory_exists(factory_id):
-        raise HTTPException(status_code=404, detail="Factory not found")
+    _accessible_factory(factory_service, factory_id, user)
     try:
         return service.create_action(factory_id, **payload.model_dump())
     except ValueError as error:
@@ -133,9 +161,13 @@ def create_roadmap_action(
     "/{factory_id}/roadmap-actions",
     response_model=list[RoadmapActionRead],
 )
-def list_roadmap_actions(factory_id: int, service: ActionService):
-    if not service.factory_exists(factory_id):
-        raise HTTPException(status_code=404, detail="Factory not found")
+def list_roadmap_actions(
+    factory_id: int,
+    service: ActionService,
+    factory_service: Service,
+    user: OptionalUser,
+):
+    _accessible_factory(factory_service, factory_id, user)
     return service.list_actions(factory_id)
 
 
@@ -148,7 +180,10 @@ def update_roadmap_action(
     action_id: int,
     payload: RoadmapActionUpdate,
     service: ActionService,
+    factory_service: Service,
+    user: OptionalUser,
 ):
+    _accessible_factory(factory_service, factory_id, user)
     action = service.get_action(factory_id, action_id)
     if action is None:
         raise HTTPException(status_code=404, detail="Roadmap action not found")
@@ -160,14 +195,19 @@ def update_roadmap_action(
     response_model=ReportingPeriodRead,
     status_code=status.HTTP_201_CREATED,
 )
-def create_period(factory_id: int, payload: ReportingPeriodCreate, service: Service):
-    factory = _factory_or_404(service, factory_id)
+def create_period(
+    factory_id: int,
+    payload: ReportingPeriodCreate,
+    service: Service,
+    user: OptionalUser,
+):
+    factory = _accessible_factory(service, factory_id, user)
     return service.create_period(factory, **payload.model_dump())
 
 
 @router.get("/{factory_id}/periods", response_model=list[ReportingPeriodRead])
-def list_periods(factory_id: int, service: Service):
-    _factory_or_404(service, factory_id)
+def list_periods(factory_id: int, service: Service, user: OptionalUser):
+    _accessible_factory(service, factory_id, user)
     return service.list_periods(factory_id)
 
 
@@ -181,8 +221,9 @@ def create_production_activity(
     period_id: int,
     payload: ProductionActivityCreate,
     service: Service,
+    user: OptionalUser,
 ):
-    period = _period_or_404(service, factory_id, period_id)
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.create_activity(
         period,
         ProductionActivity,
@@ -194,8 +235,13 @@ def create_production_activity(
     "/{factory_id}/periods/{period_id}/production",
     response_model=list[ProductionActivityRead],
 )
-def list_production_activity(factory_id: int, period_id: int, service: Service):
-    period = _period_or_404(service, factory_id, period_id)
+def list_production_activity(
+    factory_id: int,
+    period_id: int,
+    service: Service,
+    user: OptionalUser,
+):
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.list_activities(period, ProductionActivity)
 
 
@@ -209,8 +255,9 @@ def create_energy_usage(
     period_id: int,
     payload: EnergyUsageCreate,
     service: Service,
+    user: OptionalUser,
 ):
-    period = _period_or_404(service, factory_id, period_id)
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.create_activity(period, EnergyUsage, **payload.model_dump())
 
 
@@ -218,8 +265,13 @@ def create_energy_usage(
     "/{factory_id}/periods/{period_id}/energy",
     response_model=list[EnergyUsageRead],
 )
-def list_energy_usage(factory_id: int, period_id: int, service: Service):
-    period = _period_or_404(service, factory_id, period_id)
+def list_energy_usage(
+    factory_id: int,
+    period_id: int,
+    service: Service,
+    user: OptionalUser,
+):
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.list_activities(period, EnergyUsage)
 
 
@@ -233,8 +285,9 @@ def create_material_usage(
     period_id: int,
     payload: MaterialUsageCreate,
     service: Service,
+    user: OptionalUser,
 ):
-    period = _period_or_404(service, factory_id, period_id)
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.create_activity(period, MaterialUsage, **payload.model_dump())
 
 
@@ -242,8 +295,13 @@ def create_material_usage(
     "/{factory_id}/periods/{period_id}/materials",
     response_model=list[MaterialUsageRead],
 )
-def list_material_usage(factory_id: int, period_id: int, service: Service):
-    period = _period_or_404(service, factory_id, period_id)
+def list_material_usage(
+    factory_id: int,
+    period_id: int,
+    service: Service,
+    user: OptionalUser,
+):
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.list_activities(period, MaterialUsage)
 
 
@@ -257,8 +315,9 @@ def create_waste_record(
     period_id: int,
     payload: WasteRecordCreate,
     service: Service,
+    user: OptionalUser,
 ):
-    period = _period_or_404(service, factory_id, period_id)
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.create_activity(period, WasteRecord, **payload.model_dump())
 
 
@@ -266,8 +325,13 @@ def create_waste_record(
     "/{factory_id}/periods/{period_id}/waste",
     response_model=list[WasteRecordRead],
 )
-def list_waste_records(factory_id: int, period_id: int, service: Service):
-    period = _period_or_404(service, factory_id, period_id)
+def list_waste_records(
+    factory_id: int,
+    period_id: int,
+    service: Service,
+    user: OptionalUser,
+):
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.list_activities(period, WasteRecord)
 
 
@@ -281,8 +345,9 @@ def create_transportation_activity(
     period_id: int,
     payload: TransportationActivityCreate,
     service: Service,
+    user: OptionalUser,
 ):
-    period = _period_or_404(service, factory_id, period_id)
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.create_activity(
         period,
         TransportationActivity,
@@ -298,6 +363,7 @@ def list_transportation_activity(
     factory_id: int,
     period_id: int,
     service: Service,
+    user: OptionalUser,
 ):
-    period = _period_or_404(service, factory_id, period_id)
+    period = _period_or_404(service, factory_id, period_id, user)
     return service.list_activities(period, TransportationActivity)
