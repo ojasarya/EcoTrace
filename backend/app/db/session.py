@@ -8,6 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings, get_settings
+from app.db import models  # noqa: F401
+from app.db.base import Base
 
 
 @lru_cache

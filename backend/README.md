@@ -2,8 +2,8 @@
 
 The EcoTrace API is a modular FastAPI backend for the industrial emissions
 platform. It currently exposes the application entry point, a health endpoint,
-configuration, and a PostgreSQL connection foundation. Database models and
-migrations are intentionally deferred to a later implementation step.
+configuration, a PostgreSQL connection foundation, and the first versioned
+database schema for factory activity and emissions data.
 
 ## Requirements
 
@@ -34,8 +34,14 @@ Copy `.env.example` to `.env` and set `DATABASE_URL` to the PostgreSQL
 connection string for your local installation. Do not commit `.env` or put
 real credentials in `.env.example`.
 
-The API does not create database tables automatically. Schema models and
-migrations will be introduced in a later step.
+Apply the initial schema from the `backend` directory with:
+
+```powershell
+python -m alembic upgrade head
+```
+
+The API does not create database tables automatically. Use Alembic for all
+schema changes.
 
 ## Run the API
 
