@@ -88,6 +88,10 @@ Expected response:
 }
 ```
 
+Use `GET http://127.0.0.1:8000/api/v1/health/database` after configuring
+PostgreSQL to verify that the API can connect. It returns HTTP 503 when the
+configured database is unavailable.
+
 ## Tests
 
 From the `backend` directory:
