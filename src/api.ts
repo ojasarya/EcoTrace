@@ -141,6 +141,34 @@ export async function fetchHotspots(calculationId: number): Promise<ApiHotspot[]
   return response.json() as Promise<ApiHotspot[]>;
 }
 
+export type ApiSimulation = {
+  calculation_id: number;
+  baseline_kg_co2e: string;
+  simulated_kg_co2e: string;
+  reduction_kg_co2e: string;
+  reduction_percentage: string;
+  breakdown: Array<{ category: string; source: string; simulated_kg_co2e: string }>;
+};
+
+export async function simulateCalculation(
+  calculationId: number,
+  adjustments: Array<{ category: string; source: string; reduction_percentage: number }>,
+): Promise<ApiSimulation> {
+  const response = await fetch(`${apiBaseUrl}/calculations/${calculationId}/simulate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify({ adjustments }),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Simulation request failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiSimulation>;
+}
+
 export type ApiRecommendation = {
   id: number;
   name: string;
