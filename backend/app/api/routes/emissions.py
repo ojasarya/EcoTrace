@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.api.dependencies import (
     get_emission_calculation_service,
@@ -13,6 +13,7 @@ from app.api.dependencies import (
     get_roadmap_service,
     get_dashboard_service,
     get_anomaly_service,
+    get_report_service,
 )
 from app.db.models.factory import ReportingPeriod
 from app.schemas.emission import (
@@ -38,6 +39,7 @@ from app.services.simulation_service import SimulationService
 from app.services.roadmap_service import RoadmapService
 from app.services.dashboard_service import DashboardService
 from app.services.anomaly_service import AnomalyService
+from app.services.report_service import ReportService
 
 router = APIRouter(tags=["emissions"])
 FactorService = Annotated[
@@ -71,6 +73,10 @@ FactoryDashboardService = Annotated[
 FactoryAnomalyService = Annotated[
     AnomalyService,
     Depends(get_anomaly_service),
+]
+CalculationReportService = Annotated[
+    ReportService,
+    Depends(get_report_service),
 ]
 
 
@@ -246,6 +252,29 @@ def get_anomalies(
     service: FactoryAnomalyService,
 ):
     return service.detect_for_factory(factory_id)
+
+
+@router.get(
+    "/calculations/{calculation_id}/export.csv",
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {}}}},
+)
+def export_calculation(
+    calculation_id: int,
+    service: CalculationReportService,
+):
+    content = service.calculation_csv(calculation_id)
+    if content is None:
+        raise HTTPException(status_code=404, detail="Calculation not found")
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="ecotrace-calculation-{calculation_id}.csv"'
+            )
+        },
+    )
 
 
 @router.get(
