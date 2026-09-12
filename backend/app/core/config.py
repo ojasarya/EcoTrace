@@ -27,6 +27,16 @@ class Settings(BaseSettings):
         default="http://localhost:5173",
         validation_alias="CORS_ORIGINS",
     )
+    jwt_secret: str = Field(
+        default="change-this-development-secret-32-bytes",
+        validation_alias="JWT_SECRET",
+        min_length=16,
+    )
+    jwt_expiration_minutes: int = Field(
+        default=60,
+        validation_alias="JWT_EXPIRATION_MINUTES",
+        gt=0,
+    )
 
     @field_validator("database_url")
     @classmethod

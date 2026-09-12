@@ -14,6 +14,7 @@ from app.services.dashboard_service import DashboardService
 from app.services.roadmap_action_service import RoadmapActionService
 from app.services.anomaly_service import AnomalyService
 from app.services.report_service import ReportService
+from app.services.auth_service import AuthService
 
 
 def get_factory_service() -> Generator[FactoryService, None, None]:
@@ -81,3 +82,8 @@ def get_anomaly_service() -> Generator[AnomalyService, None, None]:
 def get_report_service() -> Generator[ReportService, None, None]:
     for session in get_db():
         yield ReportService(EmissionCalculationService(session))
+
+
+def get_auth_service() -> Generator[AuthService, None, None]:
+    for session in get_db():
+        yield AuthService(session)
