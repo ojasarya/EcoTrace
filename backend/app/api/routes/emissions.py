@@ -9,6 +9,7 @@ from app.api.dependencies import (
     get_emission_factor_service,
     get_hotspot_service,
     get_intervention_service,
+    get_simulation_service,
 )
 from app.db.models.factory import ReportingPeriod
 from app.schemas.emission import (
@@ -22,10 +23,12 @@ from app.schemas.intervention import (
     InterventionRead,
     RecommendationRead,
 )
+from app.schemas.simulation import SimulationRead, SimulationRequest
 from app.services.emission_calculation_service import EmissionCalculationService
 from app.services.emission_factor_service import EmissionFactorService
 from app.services.hotspot_service import HotspotService
 from app.services.intervention_service import InterventionService
+from app.services.simulation_service import SimulationService
 
 router = APIRouter(tags=["emissions"])
 FactorService = Annotated[
@@ -43,6 +46,10 @@ HotspotAnalysisService = Annotated[
 InterventionCatalogService = Annotated[
     InterventionService,
     Depends(get_intervention_service),
+]
+WhatIfSimulationService = Annotated[
+    SimulationService,
+    Depends(get_simulation_service),
 ]
 
 
@@ -161,6 +168,27 @@ def get_recommendations(
             ranked, 1
         )
     ]
+
+
+@router.post(
+    "/calculations/{calculation_id}/simulate",
+    response_model=SimulationRead,
+)
+def simulate_calculation(
+    calculation_id: int,
+    payload: SimulationRequest,
+    service: WhatIfSimulationService,
+):
+    try:
+        result = service.simulate(
+            calculation_id,
+            [item.model_dump() for item in payload.adjustments],
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if result is None:
+        raise HTTPException(status_code=404, detail="Calculation not found")
+    return result
 
 
 @router.get(

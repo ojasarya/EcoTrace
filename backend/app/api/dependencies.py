@@ -8,6 +8,7 @@ from app.services.emission_calculation_service import EmissionCalculationService
 from app.services.emission_factor_service import EmissionFactorService
 from app.services.hotspot_service import HotspotService
 from app.services.intervention_service import InterventionService
+from app.services.simulation_service import SimulationService
 
 
 def get_factory_service() -> Generator[FactoryService, None, None]:
@@ -33,3 +34,8 @@ def get_hotspot_service() -> Generator[HotspotService, None, None]:
 def get_intervention_service() -> Generator[InterventionService, None, None]:
     for session in get_db():
         yield InterventionService(session)
+
+
+def get_simulation_service() -> Generator[SimulationService, None, None]:
+    for session in get_db():
+        yield SimulationService(EmissionCalculationService(session))
