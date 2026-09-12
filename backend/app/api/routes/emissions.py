@@ -10,6 +10,7 @@ from app.api.dependencies import (
     get_hotspot_service,
     get_intervention_service,
     get_simulation_service,
+    get_roadmap_service,
 )
 from app.db.models.factory import ReportingPeriod
 from app.schemas.emission import (
@@ -24,11 +25,13 @@ from app.schemas.intervention import (
     RecommendationRead,
 )
 from app.schemas.simulation import SimulationRead, SimulationRequest
+from app.schemas.roadmap import RoadmapRead
 from app.services.emission_calculation_service import EmissionCalculationService
 from app.services.emission_factor_service import EmissionFactorService
 from app.services.hotspot_service import HotspotService
 from app.services.intervention_service import InterventionService
 from app.services.simulation_service import SimulationService
+from app.services.roadmap_service import RoadmapService
 
 router = APIRouter(tags=["emissions"])
 FactorService = Annotated[
@@ -50,6 +53,10 @@ InterventionCatalogService = Annotated[
 WhatIfSimulationService = Annotated[
     SimulationService,
     Depends(get_simulation_service),
+]
+ActionRoadmapService = Annotated[
+    RoadmapService,
+    Depends(get_roadmap_service),
 ]
 
 
@@ -189,6 +196,20 @@ def simulate_calculation(
     if result is None:
         raise HTTPException(status_code=404, detail="Calculation not found")
     return result
+
+
+@router.get(
+    "/calculations/{calculation_id}/roadmap",
+    response_model=RoadmapRead,
+)
+def get_roadmap(
+    calculation_id: int,
+    service: ActionRoadmapService,
+):
+    roadmap = service.build(calculation_id)
+    if roadmap is None:
+        raise HTTPException(status_code=404, detail="Calculation not found")
+    return roadmap
 
 
 @router.get(
