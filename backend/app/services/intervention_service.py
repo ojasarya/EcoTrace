@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.intervention import Intervention
 from app.domain.hotspots import Hotspot
+from app.domain.recommendations import calculate_carbon_roi
 
 
 class InterventionService:
@@ -29,9 +30,11 @@ class InterventionService:
 
     def rank_recommendations(
         self, hotspots: tuple[Hotspot, ...]
-    ) -> list[tuple[Intervention, Hotspot, str, Decimal, Decimal]]:
+    ) -> list[tuple[Intervention, Hotspot, str, Decimal, Decimal, Decimal | None]]:
         interventions = self.list_interventions()
-        matches: list[tuple[Intervention, Hotspot, str, Decimal, Decimal]] = []
+        matches: list[
+            tuple[Intervention, Hotspot, str, Decimal, Decimal, Decimal | None]
+        ] = []
         for hotspot in hotspots:
             for intervention in interventions:
                 if (
@@ -48,6 +51,9 @@ class InterventionService:
                         hotspot.kg_co2e
                         * intervention.estimated_reduction_percentage
                         / Decimal("100")
+                    )
+                    carbon_roi = calculate_carbon_roi(
+                        reduction, intervention.estimated_cost
                     )
                     feasibility_weight = {
                         "high": Decimal("1"),
@@ -67,5 +73,7 @@ class InterventionService:
                         * urgency_weight
                         / (cost + Decimal("1"))
                     )
-                    matches.append((intervention, hotspot, rationale, reduction, score))
+                    matches.append(
+                        (intervention, hotspot, rationale, reduction, score, carbon_roi)
+                    )
         return sorted(matches, key=lambda item: (-item[4], item[0].name.casefold()))

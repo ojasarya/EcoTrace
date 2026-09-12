@@ -28,5 +28,6 @@ class RecommendationRead(InterventionRead):
     hotspot_source: str
     hotspot_percentage: Decimal
     estimated_reduction_kg_co2e: Decimal
+    carbon_roi_kg_co2e_per_cost: Decimal | None
     priority_score: Decimal
     rationale: str

@@ -146,10 +146,18 @@ def get_recommendations(
             "hotspot_source": hotspot.source,
             "hotspot_percentage": hotspot.percentage_of_total,
             "estimated_reduction_kg_co2e": reduction,
+            "carbon_roi_kg_co2e_per_cost": carbon_roi,
             "priority_score": score,
             "rationale": rationale,
         }
-        for rank, (intervention, hotspot, rationale, reduction, score) in enumerate(
+        for rank, (
+            intervention,
+            hotspot,
+            rationale,
+            reduction,
+            score,
+            carbon_roi,
+        ) in enumerate(
             ranked, 1
         )
     ]
