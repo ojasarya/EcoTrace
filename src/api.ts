@@ -93,6 +93,129 @@ export async function fetchFactories(): Promise<Factory[]> {
   return response.json() as Promise<Factory[]>;
 }
 
+export type FactoryCreatePayload = {
+  name: string;
+  industry_type: string;
+  location: string;
+  production_unit: string;
+};
+
+export async function createFactory(payload: FactoryCreatePayload): Promise<Factory> {
+  const response = await fetch(`${apiBaseUrl}/factories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Factory creation failed (${response.status})`);
+  }
+  return response.json() as Promise<Factory>;
+}
+
+export type ReportingPeriodCreatePayload = {
+  period_start: string;
+  period_end: string;
+  production_quantity: number;
+  production_unit: string;
+};
+
+export type ReportingPeriod = {
+  id: number;
+  factory_id: number;
+  period_start: string;
+  period_end: string;
+  production_quantity: number;
+  production_unit: string;
+};
+
+export async function createReportingPeriod(factoryId: number, payload: ReportingPeriodCreatePayload): Promise<ReportingPeriod> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/periods`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Reporting period creation failed (${response.status})`);
+  }
+  return response.json() as Promise<ReportingPeriod>;
+}
+
+export type ActivityPayload = {
+  source: string;
+  quantity: number;
+  unit: string;
+  renewable_percentage?: number;
+};
+
+export async function createEnergyUsage(factoryId: number, periodId: number, payload: ActivityPayload): Promise<unknown> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/periods/${periodId}/energy`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Energy usage creation failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createMaterialUsage(factoryId: number, periodId: number, payload: {
+  material_name: string;
+  material_type: string;
+  quantity: number;
+  unit: string;
+  recycled_content_percentage?: number;
+}): Promise<unknown> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/periods/${periodId}/materials`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Material usage creation failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createTransportationActivity(factoryId: number, periodId: number, payload: {
+  mode: string;
+  direction: string;
+  distance: number;
+  distance_unit: string;
+  load_quantity: number;
+  load_unit: string;
+}): Promise<unknown> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/periods/${periodId}/transportation`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Transportation activity creation failed (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function fetchDashboard(selectedFactoryId = factoryId): Promise<DashboardResponse> {
   const response = await authorizedFetch(`/factories/${selectedFactoryId}/dashboard`);
   if (!response.ok) {

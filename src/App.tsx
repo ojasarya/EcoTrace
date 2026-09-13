@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { initialRoadmap, formatINR, recommendations, sources, trend, type Recommendation, type RoadmapItem } from "./data";
 import { calculateEmissionIntensity, calculateScenario } from "./utils";
-import { clearAccessToken, downloadCalculationCsv, fetchCalculation, fetchDashboard, fetchFactories, fetchHotspots, fetchRecommendations, fetchRoadmap, login, register, simulateCalculation, type ApiCalculation, type ApiHotspot, type DashboardResponse, type Factory as ApiFactory, type ApiRoadmap } from "./api";
+import { clearAccessToken, createEnergyUsage, createFactory, createMaterialUsage, createReportingPeriod, downloadCalculationCsv, fetchCalculation, fetchDashboard, fetchFactories, fetchHotspots, fetchRecommendations, fetchRoadmap, login, register, simulateCalculation, type ApiCalculation, type ApiHotspot, type DashboardResponse, type Factory as ApiFactory, type ApiRoadmap } from "./api";
 
 const pageNames: Record<string, string> = {
   "/dashboard": "Overview", "/factory-data": "Factory data", "/emissions": "Emissions analysis",
@@ -82,9 +82,102 @@ function Overview({ setRoadmap }: { setRoadmap: Dispatch<SetStateAction<RoadmapI
 
 function FactoryData({ onCalculate }: { onCalculate: () => void }) {
   const navigate = useNavigate();
-  const [saved, setSaved] = useState(false); const [materials, setMaterials] = useState([{ name: "Steel", quantity: "12,000", type: "Primary" }, { name: "Aluminium", quantity: "4,500", type: "Primary" }, { name: "Plastic", quantity: "2,000", type: "Mixed" }]);
-  const calculate = () => { onCalculate(); window.setTimeout(() => navigate("/emissions"), 700); };
-  return <><div className="page-header"><div><div className="eyebrow">Measure</div><h1>Factory data</h1><p>Provide operational data to estimate your factory’s carbon footprint.</p></div><div className="header-actions"><Badge tone="blue">Draft saved 2 min ago</Badge><Button variant="secondary" onClick={() => setSaved(true)}>Save draft</Button><Button onClick={calculate}><Calculator size={16} /> Calculate emissions</Button></div></div>{saved && <div className="toast"><CheckCircle2 size={17} /> Factory data saved successfully <button onClick={() => setSaved(false)}><X size={15} /></button></div>}<div className="form-grid"><Card><SectionTitle eyebrow="01 · Factory profile" title="Factory information" /><div className="input-grid"><label>Factory name<input defaultValue="Acme Manufacturing" /></label><label>Industry<select defaultValue="Industrial manufacturing"><option>Industrial manufacturing</option><option>Food processing</option><option>Textiles</option></select></label><label>Location<input defaultValue="Ahmedabad, Gujarat" /></label><label>Reporting period<input type="month" defaultValue="2026-09" /></label><label>Production volume<input defaultValue="24,000" /><small>units / month</small></label></div></Card><Card><SectionTitle eyebrow="02 · Energy" title="Energy consumption" detail="Use monthly totals from utility bills where possible." /><div className="input-grid"><label>Electricity consumption<input defaultValue="24,000" /><small>kWh / month</small></label><label>Renewable electricity<input defaultValue="20" /><small>% of total</small></label><label>Natural gas<input defaultValue="1,200" /><small>m³ / month</small></label><label>Diesel<input defaultValue="620" /><small>litres / month</small></label></div></Card><Card className="full-width"><SectionTitle eyebrow="03 · Materials" title="Material inputs" detail="Add the materials used during this reporting period." action={<Button variant="secondary" onClick={() => setMaterials([...materials, { name: "", quantity: "", type: "Primary" }])}><Plus size={15} /> Add material</Button>} /><div className="data-table"><div className="table-head"><span>Material</span><span>Quantity</span><span>Type</span><span>Recycled content</span><span /></div>{materials.map((material, index) => <div className="table-row" key={index}><input value={material.name} onChange={(e) => setMaterials(materials.map((m, i) => i === index ? { ...m, name: e.target.value } : m))} placeholder="Material name" /><input value={material.quantity} onChange={(e) => setMaterials(materials.map((m, i) => i === index ? { ...m, quantity: e.target.value } : m))} placeholder="0" /><select value={material.type} onChange={(e) => setMaterials(materials.map((m, i) => i === index ? { ...m, type: e.target.value } : m))}><option>Primary</option><option>Mixed</option><option>Recycled</option></select><div className="range-with-value"><input type="range" min="0" max="100" defaultValue={index * 10} /><span>{index * 10}%</span></div><button className="icon-button" onClick={() => setMaterials(materials.filter((_, i) => i !== index))}><X size={15} /></button></div>)}</div></Card><Card><SectionTitle eyebrow="04 · Logistics" title="Transportation" /><div className="input-grid"><label>Inbound distance<input defaultValue="18,400" /><small>km / month</small></label><label>Outbound distance<input defaultValue="12,800" /><small>km / month</small></label><label>Primary mode<select defaultValue="Road freight"><option>Road freight</option><option>Rail</option><option>Mixed</option></select></label><label>Shipment volume<input defaultValue="320" /><small>tonnes / month</small></label></div></Card><Card><SectionTitle eyebrow="05 · Waste" title="Waste streams" /><div className="waste-lines"><div><Recycle size={16} /><strong>Metal scrap</strong><span>800 kg</span><Badge tone="green">Recycled</Badge></div><div><AlertTriangle size={16} /><strong>Plastic waste</strong><span>300 kg</span><Badge tone="amber">Disposed</Badge></div><div><FileText size={16} /><strong>Packaging</strong><span>200 kg</span><Badge tone="green">Recycled</Badge></div></div><Button variant="ghost"><Plus size={15} /> Add waste stream</Button></Card></div></>;
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [factory, setFactory] = useState<ApiFactory | null>(null);
+  const [factoryName, setFactoryName] = useState("Acme Manufacturing");
+  const [industry, setIndustry] = useState("Industrial manufacturing");
+  const [location, setLocation] = useState("Ahmedabad, Gujarat");
+  const [reportingPeriod, setReportingPeriod] = useState("2026-09");
+  const [productionVolume, setProductionVolume] = useState("24000");
+  const [electricity, setElectricity] = useState("24000");
+  const [renewable, setRenewable] = useState("20");
+  const [naturalGas, setNaturalGas] = useState("1200");
+  const [diesel, setDiesel] = useState("620");
+  const [materials, setMaterials] = useState([{ name: "Steel", quantity: "12000", type: "Primary" }, { name: "Aluminium", quantity: "4500", type: "Primary" }, { name: "Plastic", quantity: "2000", type: "Mixed" }]);
+
+  useEffect(() => {
+    fetchFactories()
+      .then((factories) => {
+        const selected = factories[0];
+        if (!selected) return;
+        setFactory(selected);
+        setFactoryName(selected.name);
+        setIndustry(selected.industry_type);
+        setLocation(selected.location);
+      })
+      .catch(() => setFactory(null));
+  }, []);
+
+  const saveFactoryData = async () => {
+    setError(null);
+    try {
+      let selectedFactory = factory;
+      if (!selectedFactory) {
+        selectedFactory = await createFactory({
+          name: factoryName,
+          industry_type: industry,
+          location,
+          production_unit: "units",
+        });
+        setFactory(selectedFactory);
+      }
+
+      const [year, month] = reportingPeriod.split("-").map(Number);
+      const periodStart = new Date(year, month - 1, 1);
+      const periodEnd = new Date(year, month, 0);
+      const period = await createReportingPeriod(selectedFactory.id, {
+        period_start: periodStart.toISOString().slice(0, 10),
+        period_end: periodEnd.toISOString().slice(0, 10),
+        production_quantity: Number(productionVolume.replace(/,/g, "")),
+        production_unit: "units",
+      });
+
+      await Promise.all([
+        createEnergyUsage(selectedFactory.id, period.id, {
+          source: "grid electricity",
+          quantity: Number(electricity.replace(/,/g, "")),
+          unit: "kWh",
+          renewable_percentage: Number(renewable),
+        }),
+        Number(naturalGas) > 0 ? createEnergyUsage(selectedFactory.id, period.id, {
+          source: "natural gas",
+          quantity: Number(naturalGas.replace(/,/g, "")),
+          unit: "m³",
+        }) : Promise.resolve(),
+        Number(diesel) > 0 ? createEnergyUsage(selectedFactory.id, period.id, {
+          source: "diesel",
+          quantity: Number(diesel.replace(/,/g, "")),
+          unit: "litres",
+        }) : Promise.resolve(),
+      ]);
+
+      await Promise.all(
+        materials.filter((material) => material.name && Number(material.quantity || 0) > 0).map((material) =>
+          createMaterialUsage(selectedFactory.id, period.id, {
+            material_name: material.name,
+            material_type: material.type,
+            quantity: Number(material.quantity.replace(/,/g, "")),
+            unit: "kg",
+            recycled_content_percentage: material.type === "Recycled" ? 50 : 0,
+          }),
+        )
+      );
+
+      setSaved(true);
+      onCalculate();
+    } catch (reason) {
+      setSaved(false);
+      setError(reason instanceof Error ? reason.message : "Unable to save factory data");
+    }
+  };
+
+  const calculate = async () => {
+    await saveFactoryData();
+    window.setTimeout(() => navigate("/emissions"), 700);
+  };
+
+  return <><div className="page-header"><div><div className="eyebrow">Measure</div><h1>Factory data</h1><p>Provide operational data to estimate your factory’s carbon footprint.</p></div><div className="header-actions"><Badge tone="blue">{factory ? "Live factory synced" : "Draft mode"}</Badge><Button variant="secondary" onClick={saveFactoryData}>Save draft</Button><Button onClick={calculate}><Calculator size={16} /> Calculate emissions</Button></div></div>{saved && <div className="toast"><CheckCircle2 size={17} /> Factory data saved successfully <button onClick={() => setSaved(false)}><X size={15} /></button></div>}{error && <div className="toast"><AlertTriangle size={17} /> {error} <button onClick={() => setError(null)}><X size={15} /></button></div>}<div className="form-grid"><Card><SectionTitle eyebrow="01 · Factory profile" title="Factory information" /><div className="input-grid"><label>Factory name<input value={factoryName} onChange={(e) => setFactoryName(e.target.value)} /></label><label>Industry<select value={industry} onChange={(e) => setIndustry(e.target.value)}><option>Industrial manufacturing</option><option>Food processing</option><option>Textiles</option></select></label><label>Location<input value={location} onChange={(e) => setLocation(e.target.value)} /></label><label>Reporting period<input type="month" value={reportingPeriod} onChange={(e) => setReportingPeriod(e.target.value)} /></label><label>Production volume<input value={productionVolume} onChange={(e) => setProductionVolume(e.target.value)} /><small>units / month</small></label></div></Card><Card><SectionTitle eyebrow="02 · Energy" title="Energy consumption" detail="Use monthly totals from utility bills where possible." /><div className="input-grid"><label>Electricity consumption<input value={electricity} onChange={(e) => setElectricity(e.target.value)} /><small>kWh / month</small></label><label>Renewable electricity<input value={renewable} onChange={(e) => setRenewable(e.target.value)} /><small>% of total</small></label><label>Natural gas<input value={naturalGas} onChange={(e) => setNaturalGas(e.target.value)} /><small>m³ / month</small></label><label>Diesel<input value={diesel} onChange={(e) => setDiesel(e.target.value)} /><small>litres / month</small></label></div></Card><Card className="full-width"><SectionTitle eyebrow="03 · Materials" title="Material inputs" detail="Add the materials used during this reporting period." action={<Button variant="secondary" onClick={() => setMaterials([...materials, { name: "", quantity: "", type: "Primary" }])}><Plus size={15} /> Add material</Button>} /><div className="data-table"><div className="table-head"><span>Material</span><span>Quantity</span><span>Type</span><span>Recycled content</span><span /></div>{materials.map((material, index) => <div className="table-row" key={index}><input value={material.name} onChange={(e) => setMaterials(materials.map((m, i) => i === index ? { ...m, name: e.target.value } : m))} placeholder="Material name" /><input value={material.quantity} onChange={(e) => setMaterials(materials.map((m, i) => i === index ? { ...m, quantity: e.target.value } : m))} placeholder="0" /><select value={material.type} onChange={(e) => setMaterials(materials.map((m, i) => i === index ? { ...m, type: e.target.value } : m))}><option>Primary</option><option>Mixed</option><option>Recycled</option></select><div className="range-with-value"><input type="range" min="0" max="100" defaultValue={index * 10} /><span>{index * 10}%</span></div><button className="icon-button" onClick={() => setMaterials(materials.filter((_, i) => i !== index))}><X size={15} /></button></div>)}</div></Card><Card><SectionTitle eyebrow="04 · Logistics" title="Transportation" /><div className="input-grid"><label>Inbound distance<input defaultValue="18,400" /><small>km / month</small></label><label>Outbound distance<input defaultValue="12,800" /><small>km / month</small></label><label>Primary mode<select defaultValue="Road freight"><option>Road freight</option><option>Rail</option><option>Mixed</option></select></label><label>Shipment volume<input defaultValue="320" /><small>tonnes / month</small></label></div></Card><Card><SectionTitle eyebrow="05 · Waste" title="Waste streams" /><div className="waste-lines"><div><Recycle size={16} /><strong>Metal scrap</strong><span>800 kg</span><Badge tone="green">Recycled</Badge></div><div><AlertTriangle size={16} /><strong>Plastic waste</strong><span>300 kg</span><Badge tone="amber">Disposed</Badge></div><div><FileText size={16} /><strong>Packaging</strong><span>200 kg</span><Badge tone="green">Recycled</Badge></div></div><Button variant="ghost"><Plus size={15} /> Add waste stream</Button></Card></div></>;
 }
 
 function Emissions() {
