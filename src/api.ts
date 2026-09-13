@@ -4,6 +4,21 @@ export type DashboardCategory = {
   percentage_of_total: string;
 };
 
+export type DashboardRecommendation = {
+  id: number;
+  name: string;
+  category: string;
+  target_source: string;
+  description: string;
+  estimated_reduction_kg_co2e: string;
+  estimated_cost: string;
+  carbon_roi_kg_co2e_per_cost: string | null;
+  feasibility: string;
+  urgency: string;
+  priority_score: string | number | null;
+  rationale?: string | null;
+};
+
 export type DashboardResponse = {
   factory_id: number;
   calculation_id: number | null;
@@ -18,7 +33,7 @@ export type DashboardResponse = {
     rank: number;
     explanation: string;
   }>;
-  recommendations: unknown[];
+  recommendations: DashboardRecommendation[];
   roadmap: unknown[];
 };
 
@@ -116,6 +131,24 @@ export async function createFactory(payload: FactoryCreatePayload): Promise<Fact
   return response.json() as Promise<Factory>;
 }
 
+export type FactoryUpdatePayload = Partial<FactoryCreatePayload>;
+
+export async function updateFactory(factoryId: number, payload: FactoryUpdatePayload): Promise<Factory> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Factory update failed (${response.status})`);
+  }
+  return response.json() as Promise<Factory>;
+}
+
 export type ReportingPeriodCreatePayload = {
   period_start: string;
   period_end: string;
@@ -193,6 +226,28 @@ export async function createMaterialUsage(factoryId: number, periodId: number, p
   return response.json();
 }
 
+export async function createWasteRecord(factoryId: number, periodId: number, payload: {
+  waste_type: string;
+  quantity: number;
+  unit: string;
+  disposal_method: string;
+  recycled_quantity?: number;
+}): Promise<unknown> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/periods/${periodId}/waste`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Waste record creation failed (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function createTransportationActivity(factoryId: number, periodId: number, payload: {
   mode: string;
   direction: string;
@@ -222,6 +277,22 @@ export async function fetchDashboard(selectedFactoryId = factoryId): Promise<Das
     throw new Error(`Dashboard request failed (${response.status})`);
   }
   return response.json() as Promise<DashboardResponse>;
+}
+
+export type ApiAnomaly = {
+  calculation_id: number;
+  total_kg_co2e: string;
+  is_anomaly: boolean;
+  anomaly_score: string;
+  explanation: string;
+};
+
+export async function fetchAnomalies(selectedFactoryId: number): Promise<ApiAnomaly[]> {
+  const response = await authorizedFetch(`/factories/${selectedFactoryId}/anomalies`);
+  if (!response.ok) {
+    throw new Error(`Anomaly request failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiAnomaly[]>;
 }
 
 export type ApiCalculationBreakdown = {
@@ -292,6 +363,62 @@ export async function fetchRoadmap(calculationId: number): Promise<ApiRoadmap> {
     throw new Error(`Roadmap request failed (${response.status})`);
   }
   return response.json() as Promise<ApiRoadmap>;
+}
+
+export type ApiPersistedRoadmapAction = {
+  id: number;
+  factory_id: number;
+  calculation_id: number;
+  intervention_id: number;
+  status: string;
+  planned_start_date: string | null;
+  owner: string | null;
+  actual_cost: string | null;
+  actual_reduction_kg_co2e: string | null;
+};
+
+export async function fetchRoadmapActions(factoryId: number): Promise<ApiPersistedRoadmapAction[]> {
+  const response = await authorizedFetch(`/factories/${factoryId}/roadmap-actions`);
+  if (!response.ok) {
+    throw new Error(`Roadmap action request failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiPersistedRoadmapAction[]>;
+}
+
+export async function createRoadmapAction(factoryId: number, payload: {
+  calculation_id: number;
+  intervention_id: number;
+  status?: string;
+}): Promise<ApiPersistedRoadmapAction> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/roadmap-actions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Roadmap action creation failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiPersistedRoadmapAction>;
+}
+
+export async function updateRoadmapAction(factoryId: number, actionId: number, status: string): Promise<ApiPersistedRoadmapAction> {
+  const response = await fetch(`${apiBaseUrl}/factories/${factoryId}/roadmap-actions/${actionId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+    },
+    body: JSON.stringify({ status }),
+  });
+  if (response.status === 401 && getAccessToken()) clearAccessToken();
+  if (!response.ok) {
+    throw new Error(`Roadmap action update failed (${response.status})`);
+  }
+  return response.json() as Promise<ApiPersistedRoadmapAction>;
 }
 
 export type ApiSimulation = {
